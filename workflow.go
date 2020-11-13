@@ -259,14 +259,35 @@ func (w *Workflow) Validate(ctx context.Context) DError {
 	return nil
 }
 
+// WorkflowModifier is a function type for functions that can modify a Workflow object.
+//
+// Deprecated: This will be removed in a future release.
+type WorkflowModifier func(*Workflow)
+
 // Run runs a workflow.
 func (w *Workflow) Run(ctx context.Context) error {
+	return w.RunWithModifiers(ctx, nil, nil)
+}
+
+// RunWithModifiers runs a workflow with the ability to modify it before and/or after validation.
+//
+// Deprecated: This will be removed in a future release.
+func (w *Workflow) RunWithModifiers(
+	ctx context.Context,
+	preValidateWorkflowModifier WorkflowModifier,
+	postValidateWorkflowModifier WorkflowModifier) (err DError) {
+
 	w.externalLogging = true
-	var err error
-	if err := w.Validate(ctx); err != nil {
+	if preValidateWorkflowModifier != nil {
+		preValidateWorkflowModifier(w)
+	}
+	if err = w.Validate(ctx); err != nil {
 		return err
 	}
 
+	if postValidateWorkflowModifier != nil {
+		postValidateWorkflowModifier(w)
+	}
 	defer w.cleanup()
 	defer func() {
 		if err != nil {
@@ -860,6 +881,20 @@ func stepsListen(names []string, chans map[string]chan DError) (string, DError) 
 		return name, value.Interface().(DError)
 	}
 	return name, nil
+}
+
+// IterateWorkflowSteps iterates over all workflow steps, including included
+// workflow steps, and calls cb callback function
+//
+// Deprecated: This will be removed in a future release.
+func (w *Workflow) IterateWorkflowSteps(cb func(step *Step)) {
+	for _, step := range w.Steps {
+		if step.IncludeWorkflow != nil {
+			//recurse into included workflow
+			step.IncludeWorkflow.Workflow.IterateWorkflowSteps(cb)
+		}
+		cb(step)
+	}
 }
 
 // CancelWithReason cancels workflow with a specific reason. The specific reason replaces "is canceled" in the default error message.
