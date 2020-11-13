@@ -73,7 +73,7 @@ func TestAddFlags(t *testing.T) {
 }
 
 func TestParseWorkflows(t *testing.T) {
-	path := "../../daisy/test_data/test.wf.json"
+	path := "../test_data/test.wf.json"
 	varMap := map[string]string{"key1": "var1", "key2": "var2"}
 	project := "project"
 	zone := "zone"
