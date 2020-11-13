@@ -34,7 +34,7 @@ func TestDiskPopulate(t *testing.T) {
 	genName := w.genName(name)
 	defType := fmt.Sprintf("projects/%s/zones/%s/diskTypes/pd-standard", w.Project, w.Zone)
 	ssdType := fmt.Sprintf("projects/%s/zones/%s/diskTypes/pd-ssd", w.Project, w.Zone)
-	tests := []struct {git remote add origin git@github.com:GoogleCloudPlatform/compute-daisy.git
+	tests := []struct {
 		desc        string
 		input, want *Disk
 		wantErr     bool
