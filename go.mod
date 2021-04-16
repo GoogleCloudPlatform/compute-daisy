@@ -1,4 +1,4 @@
-module github.com/GoogleCloudPlatform/compute-image-tools/daisy
+module github.com/GoogleCloudPlatform/compute-daisy
 
 go 1.13
 
