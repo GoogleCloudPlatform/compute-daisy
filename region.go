@@ -15,7 +15,7 @@
 package daisy
 
 import (
-	daisyCompute "github.com/GoogleCloudPlatform/compute-image-tools/daisy/compute"
+	daisyCompute "github.com/GoogleCloudPlatform/compute-daisy/compute"
 )
 
 func (w *Workflow) regionExists(project, region string) (bool, DError) {

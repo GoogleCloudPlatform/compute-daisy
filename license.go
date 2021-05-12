@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"regexp"
 
-	daisyCompute "github.com/GoogleCloudPlatform/compute-image-tools/daisy/compute"
+	daisyCompute "github.com/GoogleCloudPlatform/compute-daisy/compute"
 )
 
 var licenseURLRegex = regexp.MustCompile(fmt.Sprintf(`^(projects/(?P<project>%[1]s)/)?global/licenses/(?P<license>%[2]s)$`, projectRgxStr, rfc1035))

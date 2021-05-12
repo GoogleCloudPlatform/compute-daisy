@@ -21,7 +21,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/GoogleCloudPlatform/compute-image-tools/daisy/compute"
+	"github.com/GoogleCloudPlatform/compute-daisy/compute"
 )
 
 const (

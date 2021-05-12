@@ -29,7 +29,7 @@ import (
 
 	"cloud.google.com/go/logging"
 	"cloud.google.com/go/storage"
-	daisyCompute "github.com/GoogleCloudPlatform/compute-image-tools/daisy/compute"
+	daisyCompute "github.com/GoogleCloudPlatform/compute-daisy/compute"
 	"github.com/davecgh/go-spew/spew"
 	emptypb "github.com/golang/protobuf/ptypes/empty"
 	godebugDiff "github.com/kylelemons/godebug/diff"
@@ -306,8 +306,8 @@ func newTestGCSClient() (*storage.Client, error) {
 	getObjRgx := regexp.MustCompile(`/b/.+/o/.+alt=json&projection=full`)
 	getBktRgx := regexp.MustCompile(`/b/.+alt=json&prettyPrint=false&projection=full`)
 	deleteObjRgx := regexp.MustCompile(`/b/.+/o/.+alt=json`)
-	listObjsRgx := regexp.MustCompile(`/b/.+/o\?alt=json&delimiter=&pageToken=&prefix=.+&projection=full&versions=false`)
-	listObjsNoPrefixRgx := regexp.MustCompile(`/b/.+/o\?alt=json&delimiter=&pageToken=&prefix=&projection=full&versions=false`)
+	listObjsRgx := regexp.MustCompile(`/b/.+/o.+prefix=.+&.+`)
+	listObjsNoPrefixRgx := regexp.MustCompile(`/b/.+/o?.+prefix=&.+`)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		u := r.URL.String()

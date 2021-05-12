@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	daisyCompute "github.com/GoogleCloudPlatform/compute-image-tools/daisy/compute"
+	daisyCompute "github.com/GoogleCloudPlatform/compute-daisy/compute"
 	compute "google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 )
@@ -32,7 +32,7 @@ func TestWaitForInstanceStopped(t *testing.T) {
 	w := testWorkflow()
 
 	svr, c, err := daisyCompute.NewTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" && r.URL.String() == fmt.Sprintf("/%s/zones/%s/instances/%s?alt=json&prettyPrint=false", testProject, testZone, "foo") {
+		if r.Method == "GET" && r.URL.String() == fmt.Sprintf("/projects/%s/zones/%s/instances/%s?alt=json&prettyPrint=false", testProject, testZone, "foo") {
 			fmt.Fprint(w, `{"Status":"TERMINATED"}`)
 		} else {
 			w.WriteHeader(500)

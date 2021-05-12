@@ -32,6 +32,8 @@ import (
 	"google.golang.org/api/transport"
 )
 
+const retries = 1
+
 // Client is a client for interacting with Google Cloud Compute.
 type Client interface {
 	AttachDisk(project, zone, instance string, d *compute.AttachedDisk) error
@@ -232,6 +234,10 @@ func shouldRetryWithWait(tripper http.RoundTripper, err error, multiplier int) b
 	case apiErr.Code >= 429:
 		// Too many API requests.
 		retry = true
+	case apiErr.Code == 403 && strings.Contains(err.Error(), "rateLimitExceeded"):
+		// Quota errors are reported as 403.
+		// Generally we don't want to retry on quota errors, but if it's quota on rate (GetSerialPortOutput) - we should.
+		retry = true
 	case !tkValid:
 		// This was probably a failure to get new token from metadata server.
 		retry = true
@@ -365,7 +371,7 @@ func (c *client) operationsWaitHelper(project, name string, getOperation operati
 // status response indicates the request should be attempted again or the
 // oauth Token is no longer valid.
 func (c *client) Retry(f func(opts ...googleapi.CallOption) (*compute.Operation, error), opts ...googleapi.CallOption) (op *compute.Operation, err error) {
-	for i := 1; i < 4; i++ {
+	for i := 1; i < retries+1; i++ {
 		op, err = f(opts...)
 		if err == nil {
 			return op, nil
@@ -381,7 +387,7 @@ func (c *client) Retry(f func(opts ...googleapi.CallOption) (*compute.Operation,
 // status response indicates the request should be attempted again or the
 // oauth Token is no longer valid.
 func (c *client) RetryBeta(f func(opts ...googleapi.CallOption) (*computeBeta.Operation, error), opts ...googleapi.CallOption) (op *computeBeta.Operation, err error) {
-	for i := 1; i < 4; i++ {
+	for i := 1; i < retries+1; i++ {
 		op, err = f(opts...)
 		if err == nil {
 			return op, nil
@@ -397,7 +403,7 @@ func (c *client) RetryBeta(f func(opts ...googleapi.CallOption) (*computeBeta.Op
 // status response indicates the request should be attempted again or the
 // oauth Token is no longer valid.
 func (c *client) RetryAlpha(f func(opts ...googleapi.CallOption) (*computeAlpha.Operation, error), opts ...googleapi.CallOption) (op *computeAlpha.Operation, err error) {
-	for i := 1; i < 4; i++ {
+	for i := 1; i < retries+1; i++ {
 		op, err = f(opts...)
 		if err == nil {
 			return op, nil

@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	daisyCompute "github.com/GoogleCloudPlatform/compute-image-tools/daisy/compute"
+	daisyCompute "github.com/GoogleCloudPlatform/compute-daisy/compute"
 	"google.golang.org/api/compute/v1"
 )
 

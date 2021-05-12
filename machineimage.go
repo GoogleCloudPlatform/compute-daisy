@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"regexp"
 
-	daisyCompute "github.com/GoogleCloudPlatform/compute-image-tools/daisy/compute"
+	daisyCompute "github.com/GoogleCloudPlatform/compute-daisy/compute"
 	computeBeta "google.golang.org/api/compute/v0.beta"
 	"google.golang.org/api/googleapi"
 )

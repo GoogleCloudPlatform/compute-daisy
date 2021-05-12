@@ -155,6 +155,44 @@ func TestGetSourceGCSAPIPath(t *testing.T) {
 	}
 }
 
+func TestCancelWorkflow_IsIdempotent(t *testing.T) {
+	w := testWorkflow()
+	if w.isCanceled {
+		t.Error("Didn't expect workflow to be canceled.")
+	}
+	w.CancelWorkflow()
+	w.CancelWorkflow()
+	if !w.isCanceled {
+		t.Error("Expect workflow to be canceled.")
+	}
+}
+
+func TestCancelWithReason_IsCallableMultipleTimes_AndKeepsFirstCancelReason(t *testing.T) {
+	w := testWorkflow()
+	reason1 := "reason1"
+	reason2 := "reason2"
+	w.CancelWithReason(reason1)
+	w.CancelWithReason(reason2)
+	if !w.isCanceled {
+		t.Error("Expect workflow to be canceled.")
+	}
+	if w.getCancelReason() != reason1 {
+		t.Errorf("Expected reason1 mismatch. got=%q, want=%q", w.getCancelReason(), reason1)
+	}
+}
+
+func TestCancelWorkflow_RecoversFromManuallyClosedChannel(t *testing.T) {
+	w := testWorkflow()
+	if w.isCanceled {
+		t.Error("Didn't expect workflow to be canceled.")
+	}
+	close(w.Cancel)
+	w.CancelWorkflow()
+	if !w.isCanceled {
+		t.Error("Expect workflow to be canceled.")
+	}
+}
+
 func TestNewFromFileError(t *testing.T) {
 	td, err := ioutil.TempDir(os.TempDir(), "")
 	if err != nil {
@@ -735,14 +773,12 @@ func doTestForceCleanup(t *testing.T, runErrorFromStep bool, forceCleanupOnError
 	w.Steps = map[string]*Step{
 		"s0": {name: "s0", testType: &mockStep{runImpl: mockRun(0)}, w: w},
 	}
-
 	if err := w.Run(ctx); (err != nil) != runErrorFromStep {
 		if runErrorFromStep {
 			t.Errorf("expected error from w.Run but nil received")
 		} else {
 			t.Errorf("expected no error from w.Run but %v received", err)
 		}
-
 	}
 	if w.forceCleanup != forceCleanup {
 		t.Errorf("w.forceCleanup should be set to %v but is %v", forceCleanup, w.forceCleanup)
@@ -858,7 +894,7 @@ func TestValidateErrors(t *testing.T) {
 	// Error from populate().
 	w = testWorkflow()
 	w.Steps = map[string]*Step{"s0": {Timeout: "10", testType: &mockStep{}}}
-	want = "error populating workflow: error populating step \"s0\": time: missing unit in duration 10"
+	want = "error populating workflow: error populating step \"s0\": time: missing unit in duration \"10\""
 	if err := testValidateErrors(w, want); err != nil {
 		t.Error(err)
 	}

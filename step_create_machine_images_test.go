@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	daisyCompute "github.com/GoogleCloudPlatform/compute-image-tools/daisy/compute"
+	daisyCompute "github.com/GoogleCloudPlatform/compute-daisy/compute"
 	computeBeta "google.golang.org/api/compute/v0.beta"
 )
 
