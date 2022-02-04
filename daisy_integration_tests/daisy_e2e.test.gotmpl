@@ -1,0 +1,45 @@
+{
+  "Name": "daisy-e2e-tests",
+  "TestParallelCount": 30,
+  "Tests": {
+    "Sources upload/download": {
+      "Path": "./can_retrieve_sources.wf.json"
+    },
+    "Step AttachDisks": {
+      "Path": "./step_attach_disks.wf.json"
+    },
+    "Step CopyGCSObject": {
+      "Path": "./step_copy_gcs_object.wf.json"
+    },
+    "Step CreateDisks": {
+      "Path": "./step_create_disks.wf.json"
+    },
+    "Step CreateImages": {
+      "Path": "./step_create_images.wf.json"
+    },
+    "Step CreateInstances": {
+      "Path": "./step_create_instances.wf.json"
+    },
+    "Step CreateMachineImages": {
+      "Path": "./step_create_machine_images.wf.json"
+    },
+    "Step CreateNetworks": {
+      "Path": "./step_create_networks.wf.json"
+    },
+    "Step CreateNetworks": {
+      "Path": "./step_create_snapshots.wf.json"
+    },
+    "Step DetachDisks": {
+      "Path": "./step_detach_disks.wf.json"
+    },
+    "Step IncludeWorkflow": {
+      "Path": "./step_include_workflow.wf.json"
+    },
+    "Step WaitForInstanceSignal": {
+      "Path": "./step_wait_for_instance_signal.wf.json"
+    },
+    "Validate cloud logging": {
+      "Path": "./validate_cloud_logging.wf.json"
+    },
+  }
+}
