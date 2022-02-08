@@ -74,6 +74,27 @@ func TestMinInt(t *testing.T) {
 	}
 }
 
+func TestHasVariableDeclaration(t *testing.T) {
+	tests := []struct {
+		desc string
+		s    string
+		want bool
+	}{
+		{"no declaration", "content", false},
+		{"no declaration: empty string", "", false},
+		{"no declaration: only dollar", "$var", false},
+		{"no declaration: no closing bracket", "{", false},
+		{"contains declaration", "content ${k}", true},
+		{"contains declaration: source", "${SOURCE: fname}", true},
+	}
+
+	for _, tt := range tests {
+		if got := hasVariableDeclaration(tt.s); got != tt.want {
+			t.Errorf("%s: %v != %v", tt.desc, got, tt.want)
+		}
+	}
+}
+
 func TestRandString(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		l := len(randString(i))
@@ -392,14 +413,14 @@ func TestCombineGuestOSFeatures(t *testing.T) {
 			want:               featuresOf("WINDOWS"),
 		},
 		{
-			currentFeatures:    featuresOf("SECURE_BOOT"),
+			currentFeatures:    featuresOf("MULTI_IP_SUBNET"),
 			additionalFeatures: []string{"WINDOWS"},
-			want:               featuresOf("SECURE_BOOT", "WINDOWS"),
+			want:               featuresOf("MULTI_IP_SUBNET", "WINDOWS"),
 		},
 		{
-			currentFeatures:    featuresOf("SECURE_BOOT", "UEFI_COMPATIBLE"),
+			currentFeatures:    featuresOf("MULTI_IP_SUBNET", "UEFI_COMPATIBLE"),
 			additionalFeatures: []string{"WINDOWS", "UEFI_COMPATIBLE"},
-			want:               featuresOf("SECURE_BOOT", "UEFI_COMPATIBLE", "WINDOWS"),
+			want:               featuresOf("MULTI_IP_SUBNET", "UEFI_COMPATIBLE", "WINDOWS"),
 		},
 	}
 

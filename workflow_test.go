@@ -32,6 +32,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/stretchr/testify/assert"
+	computeAlpha "google.golang.org/api/compute/v0.alpha"
 	computeBeta "google.golang.org/api/compute/v0.beta"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
@@ -237,6 +239,65 @@ func TestNewFromFileError(t *testing.T) {
 	}
 }
 
+func TestNewIncludedWorkflowFromFile_UsesResourcesFromParent(t *testing.T) {
+	parent := New()
+	parent.workflowDir = "./test_data"
+	included, err := parent.NewIncludedWorkflowFromFile("TestNewIncludedWorkflowFromFile_UsesResourcesFromParent.wf.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, parent.Cancel, included.Cancel, "Cancel")
+	assertEqual(t, parent, included.parent, "parent")
+	assertEqual(t, parent.disks, included.disks, "disks")
+	assertEqual(t, parent.forwardingRules, included.forwardingRules, "forwardingRules")
+	assertEqual(t, parent.images, included.images, "images")
+	assertEqual(t, parent.machineImages, included.machineImages, "machineImages")
+	assertEqual(t, parent.instances, included.instances, "instances")
+	assertEqual(t, parent.networks, included.networks, "networks")
+	assertEqual(t, parent.subnetworks, included.subnetworks, "subnetworks")
+	assertEqual(t, parent.targetInstances, included.targetInstances, "targetInstances")
+	assertEqual(t, parent.snapshots, included.snapshots, "snapshots")
+	assertEqual(t, parent.objects, included.objects, "objects")
+}
+
+func assertEqual(t *testing.T, expected, actual interface{}, msg string) {
+	t.Helper()
+	if expected != actual {
+		t.Error(msg)
+	}
+}
+
+func TestNewFromFile_ReadsChildWorkflows(t *testing.T) {
+	parent, derr := NewFromFile("./test_data/TestNewFromFile_ReadsChildWorkflows.parent.wf.json")
+	if derr != nil {
+		t.Fatal(derr)
+	}
+
+	// Included Workflow
+	includedStep1 := parent.Steps["include-workflow"].IncludeWorkflow
+	assert.NotNil(t, includedStep1, "NewFromFile should read and parse included workflow")
+	assert.Equal(t, map[string]string{
+		"k1": "v1",
+	}, includedStep1.Vars, "included workflow should have variables that were declared in its step in the parent.")
+	includedStep2 := includedStep1.Workflow.Steps["include-workflow"].IncludeWorkflow
+	assert.NotNil(t, includedStep2, "NewFromFile should read and parse included workflows recursively")
+	assert.Equal(t, map[string]string{
+		"k3": "v3",
+	}, includedStep2.Vars, "included workflow should have variables that were declared in its step in the parent.")
+
+	// Sub Workflow
+	subStep1 := parent.Steps["sub-workflow"].SubWorkflow
+	assert.NotNil(t, subStep1, "NewFromFile should read and parse included workflow")
+	assert.Equal(t, map[string]string{
+		"k2": "v2",
+	}, subStep1.Vars, "sub workflow should have variables that were declared in its step in the parent.")
+	subStep2 := subStep1.Workflow.Steps["sub-workflow"].SubWorkflow
+	assert.NotNil(t, subStep2, "NewFromFile should read and parse sub workflows recursively")
+	assert.Equal(t, map[string]string{
+		"k4": "v4",
+	}, subStep2.Vars, "sub workflow should have variables that were declared in its step in the parent.")
+}
+
 func TestNewFromFile(t *testing.T) {
 	got, derr := NewFromFile("./test_data/test.wf.json")
 	if derr != nil {
@@ -391,6 +452,13 @@ func TestNewFromFile(t *testing.T) {
 					},
 					GuestOsFeatures: []string{"VIRTIO_SCSI_MULTIQUEUE", "UBUNTU", "MULTI_IP_SUBNET"},
 				}},
+				ImagesAlpha: []*ImageAlpha{{
+					Image: computeAlpha.Image{Name: "image-from-local-disk", SourceDisk: "local-image", StorageLocations: []string{"europe-west1"}, Description: "Some Ubuntu", Family: "ubuntu-1404"},
+					ImageBase: ImageBase{OverWrite: false,
+						Resource: Resource{Project: "a_project", NoCleanup: true, ExactName: false},
+					},
+					GuestOsFeatures: []string{"VIRTIO_SCSI_MULTIQUEUE", "UBUNTU", "MULTI_IP_SUBNET"},
+				}},
 				ImagesBeta: []*ImageBeta{{
 					Image: computeBeta.Image{Name: "image-from-local-disk", SourceDisk: "local-image", StorageLocations: []string{"europe-west1"}, Description: "Some Ubuntu", Family: "ubuntu-1404"},
 					ImageBase: ImageBase{OverWrite: false,
@@ -405,6 +473,13 @@ func TestNewFromFile(t *testing.T) {
 			CreateImages: &CreateImages{
 				Images: []*Image{{
 					Image: compute.Image{Name: "image-from-disk", SourceDisk: "image", Description: "Microsoft, SQL Server 2016 Web, on Windows Server 2019", Family: "sql-web-2016-win-2019"},
+					ImageBase: ImageBase{OverWrite: true,
+						Resource: Resource{Project: "a_project", NoCleanup: true, ExactName: true},
+					},
+					GuestOsFeatures: []string{"VIRTIO_SCSI_MULTIQUEUE", "WINDOWS", "MULTI_IP_SUBNET"},
+				}},
+				ImagesAlpha: []*ImageAlpha{{
+					Image: computeAlpha.Image{Name: "image-from-disk", SourceDisk: "image", Description: "Microsoft, SQL Server 2016 Web, on Windows Server 2019", Family: "sql-web-2016-win-2019"},
 					ImageBase: ImageBase{OverWrite: true,
 						Resource: Resource{Project: "a_project", NoCleanup: true, ExactName: true},
 					},
@@ -429,6 +504,13 @@ func TestNewFromFile(t *testing.T) {
 					},
 					GuestOsFeatures: []string{"VIRTIO_SCSI_MULTIQUEUE", "WINDOWS", "MULTI_IP_SUBNET"},
 				}},
+				ImagesAlpha: []*ImageAlpha{{
+					Image: computeAlpha.Image{Name: "image-from-disk", SourceDisk: "image", Description: "GuestOS Features Compute API", Family: "guest-os"},
+					ImageBase: ImageBase{OverWrite: true,
+						Resource: Resource{Project: "a_project", NoCleanup: true, ExactName: true},
+					},
+					GuestOsFeatures: []string{"VIRTIO_SCSI_MULTIQUEUE", "WINDOWS", "MULTI_IP_SUBNET"},
+				}},
 				ImagesBeta: []*ImageBeta{{
 					Image: computeBeta.Image{Name: "image-from-disk", SourceDisk: "image", Description: "GuestOS Features Compute API", Family: "guest-os"},
 					ImageBase: ImageBase{OverWrite: true,
@@ -448,24 +530,6 @@ func TestNewFromFile(t *testing.T) {
 				}},
 			},
 		},
-		"include-workflow": {
-			name: "include-workflow",
-			IncludeWorkflow: &IncludeWorkflow{
-				Vars: map[string]string{
-					"key": "value",
-				},
-				Path: "./test_sub.wf.json",
-			},
-		},
-		"sub-workflow": {
-			name: "sub-workflow",
-			SubWorkflow: &SubWorkflow{
-				Vars: map[string]string{
-					"key": "value",
-				},
-				Path: "./test_sub.wf.json",
-			},
-		},
 	}
 	want.Dependencies = map[string][]string{
 		"create-disks":          {},
@@ -476,8 +540,6 @@ func TestNewFromFile(t *testing.T) {
 		"create-image-locality": {"postinstall-stopped"},
 		"create-image":          {"create-image-locality"},
 		"create-machine-image":  {"create-image"},
-		"include-workflow":      {"create-image"},
-		"sub-workflow":          {"create-image"},
 	}
 
 	for _, s := range want.Steps {
@@ -507,6 +569,53 @@ func TestNewStep(t *testing.T) {
 	}
 	if err == nil {
 		t.Error("should have erred, but didn't")
+	}
+}
+
+func TestNewFromFile_SupportsNestedVariables(t *testing.T) {
+	cases := []struct {
+		name     string
+		template string
+	}{
+		{"Variable in filename", "./test_data/TestNewFromFile_SupportsNestedVariables_VarInFilename.parent.wf.json"},
+		{"No variable in filename", "./test_data/TestNewFromFile_SupportsNestedVariables.parent.wf.json"}}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			client, err := newTestGCSClient()
+			if err != nil {
+				t.Fatal(err)
+			}
+			td, err := ioutil.TempDir(os.TempDir(), "")
+			if err != nil {
+				t.Fatalf("error creating temp dir: %v", err)
+			}
+			defer os.RemoveAll(td)
+			tf := filepath.Join(td, "test.cred")
+			if err := ioutil.WriteFile(tf, []byte(`{ "type": "service_account" }`), 0600); err != nil {
+				t.Fatalf("error creating temp file: %v", err)
+			}
+
+			wf, err := NewFromFile(tt.template)
+			if err != nil {
+				t.Fatal(err)
+			}
+			wf.Zone = "wf-zone"
+			wf.Project = "bar-project"
+			wf.OAuthPath = tf
+			wf.Logger = &MockLogger{}
+			wf.StorageClient = client
+			wf.externalLogging = true
+
+			err = wf.populate(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			child := wf.Steps["include-workflow"].IncludeWorkflow
+			assert.Equal(t, "v1", child.Vars["k1"])
+			assert.Equal(t, "include-workflow-image-v1", (*child.Workflow.Steps["create-disks"].CreateDisks)[0].SourceImage)
+		})
 	}
 }
 
@@ -773,12 +882,14 @@ func doTestForceCleanup(t *testing.T, runErrorFromStep bool, forceCleanupOnError
 	w.Steps = map[string]*Step{
 		"s0": {name: "s0", testType: &mockStep{runImpl: mockRun(0)}, w: w},
 	}
+
 	if err := w.Run(ctx); (err != nil) != runErrorFromStep {
 		if runErrorFromStep {
 			t.Errorf("expected error from w.Run but nil received")
 		} else {
 			t.Errorf("expected no error from w.Run but %v received", err)
 		}
+
 	}
 	if w.forceCleanup != forceCleanup {
 		t.Errorf("w.forceCleanup should be set to %v but is %v", forceCleanup, w.forceCleanup)
@@ -869,9 +980,13 @@ func TestPrint(t *testing.T) {
 }
 
 func testValidateErrors(w *Workflow, want string) error {
+	wantRegex, err := regexp.Compile(want)
+	if err != nil {
+		return fmt.Errorf("did not expect regexp.Compile(%s) to return error: %s", want, err.Error())
+	}
 	if err := w.Validate(context.Background()); err == nil {
 		return errors.New("expected error, got nil")
-	} else if err.Error() != want {
+	} else if !wantRegex.MatchString(err.Error()) {
 		return fmt.Errorf("did not get expected error from Validate():\ngot: %q\nwant: %q", err.Error(), want)
 	}
 	select {
@@ -894,7 +1009,7 @@ func TestValidateErrors(t *testing.T) {
 	// Error from populate().
 	w = testWorkflow()
 	w.Steps = map[string]*Step{"s0": {Timeout: "10", testType: &mockStep{}}}
-	want = "error populating workflow: error populating step \"s0\": time: missing unit in duration \"10\""
+	want = "error populating workflow: error populating step \"?s0\"?: time: missing unit in duration \"?10\"?"
 	if err := testValidateErrors(w, want); err != nil {
 		t.Error(err)
 	}
@@ -903,7 +1018,7 @@ func TestValidateErrors(t *testing.T) {
 	w = testWorkflow()
 	w.Steps = map[string]*Step{"s0": {testType: &mockStep{}}}
 	w.Project = "foo"
-	want = "error validating workflow: bad project lookup: \"foo\", error: APIError: bad project"
+	want = "error validating workflow: bad project lookup: \"?foo\"?, error: APIError: bad project"
 	if err := testValidateErrors(w, want); err != nil {
 		t.Error(err)
 	}
@@ -1025,10 +1140,23 @@ func TestPopulateClients(t *testing.T) {
 	if w.cloudLoggingClient == nil {
 		t.Errorf("Did not populate Cloud Logging client.")
 	}
+
+	w.cloudLoggingClient = nil
+	w.DisableCloudLogging()
+	tryPopulateClients(t, w)
+	if w.cloudLoggingClient != nil {
+		t.Errorf("Cloud Logging client populated when Cloud Logging is disabled.")
+	}
+
+	w.ComputeClient = nil
+	tryPopulateClients(t, w, option.WithEndpoint("test.com"))
+	if w.ComputeClient.BasePath() != "test.com" {
+		t.Errorf("Did not accept custom options.")
+	}
 }
 
-func tryPopulateClients(t *testing.T, w *Workflow) {
-	if err := w.PopulateClients(context.Background()); err != nil {
+func tryPopulateClients(t *testing.T, w *Workflow, options ...option.ClientOption) {
+	if err := w.PopulateClients(context.Background(), options...); err != nil {
 		t.Errorf("Failed to populate clients for workflow: %v", err)
 	}
 }

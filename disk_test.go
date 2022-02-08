@@ -1,17 +1,3 @@
-//  Copyright 2017 Google Inc. All Rights Reserved.
-//
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
-
 package daisy
 
 import (
@@ -74,20 +60,6 @@ func TestDiskPopulate(t *testing.T) {
 			&Disk{Disk: compute.Disk{Name: name, SourceImage: "ifoo"}},
 			&Disk{Disk: compute.Disk{Name: genName, SourceImage: "ifoo", Type: defType, Zone: w.Zone}},
 			false,
-		},
-		{
-			"Add WINDOWS guest feature",
-			&Disk{Disk: compute.Disk{Name: name}, IsWindows: "true"},
-			&Disk{
-				Disk:      compute.Disk{Name: genName, Type: defType, Zone: w.Zone, GuestOsFeatures: featuresOf("WINDOWS")},
-				IsWindows: "true"},
-			false,
-		},
-		{
-			"Fail if IsWindows cannot be parsed as boolean",
-			&Disk{Disk: compute.Disk{Name: name}, IsWindows: "garbage"},
-			nil,
-			true,
 		},
 		{
 			"bad SizeGb case",

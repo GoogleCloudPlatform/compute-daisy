@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	computeAlpha "google.golang.org/api/compute/v0.alpha"
 	computeBeta "google.golang.org/api/compute/v0.beta"
 	compute "google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
@@ -74,6 +75,7 @@ type TestClient struct {
 	ListMachineTypesFn          func(project, zone string, opts ...ListCallOption) ([]*compute.MachineType, error)
 	GetProjectFn                func(project string) (*compute.Project, error)
 	GetSerialPortOutputFn       func(project, zone, name string, port, start int64) (*compute.SerialPortOutput, error)
+	GetGuestAttributesFn        func(project, zone, name, queryPath, variableKey string) (*compute.GuestAttributes, error)
 	GetZoneFn                   func(project, zone string) (*compute.Zone, error)
 	ListZonesFn                 func(project string, opts ...ListCallOption) ([]*compute.Zone, error)
 	GetInstanceFn               func(project, zone, name string) (*compute.Instance, error)
@@ -108,8 +110,10 @@ type TestClient struct {
 	SetCommonInstanceMetadataFn func(project string, md *compute.Metadata) error
 	RetryFn                     func(f func(opts ...googleapi.CallOption) (*compute.Operation, error), opts ...googleapi.CallOption) (op *compute.Operation, err error)
 
+	// Alpha API calls
+	CreateInstanceAlphaFn func(project, zone string, i *computeAlpha.Instance) error
+
 	// Beta API calls
-	GetGuestAttributesFn func(project, zone, name, queryPath, variableKey string) (*computeBeta.GuestAttributes, error)
 	ListMachineImagesFn  func(project string, opts ...ListCallOption) ([]*computeBeta.MachineImage, error)
 	DeleteMachineImageFn func(project, name string) error
 	CreateMachineImageFn func(project string, i *computeBeta.MachineImage) error
@@ -554,7 +558,7 @@ func (c *TestClient) GetSerialPortOutput(project, zone, name string, port, start
 }
 
 // GetGuestAttributes uses the override method GetGuestAttributesFn or the real implementation.
-func (c *TestClient) GetGuestAttributes(project, zone, name, queryPath, variableKey string) (*computeBeta.GuestAttributes, error) {
+func (c *TestClient) GetGuestAttributes(project, zone, name, queryPath, variableKey string) (*compute.GuestAttributes, error) {
 	if c.GetGuestAttributesFn != nil {
 		return c.GetGuestAttributesFn(project, zone, name, queryPath, variableKey)
 	}
@@ -663,4 +667,12 @@ func (c *TestClient) CreateInstanceBeta(project, zone string, i *computeBeta.Ins
 		return c.CreateInstanceBetaFn(project, zone, i)
 	}
 	return c.client.CreateInstanceBeta(project, zone, i)
+}
+
+// CreateInstanceAlpha uses the override method CreateInstanceAlphaFn or the real implementation.
+func (c *TestClient) CreateInstanceAlpha(project, zone string, i *computeAlpha.Instance) error {
+	if c.CreateInstanceBetaFn != nil {
+		return c.CreateInstanceAlphaFn(project, zone, i)
+	}
+	return c.client.CreateInstanceAlpha(project, zone, i)
 }

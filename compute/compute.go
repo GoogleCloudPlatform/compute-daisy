@@ -32,8 +32,6 @@ import (
 	"google.golang.org/api/transport"
 )
 
-const retries = 1
-
 // Client is a client for interacting with Google Cloud Compute.
 type Client interface {
 	AttachDisk(project, zone, instance string, d *compute.AttachedDisk) error
@@ -44,8 +42,10 @@ type Client interface {
 	CreateForwardingRule(project, region string, fr *compute.ForwardingRule) error
 	CreateFirewallRule(project string, i *compute.Firewall) error
 	CreateImage(project string, i *compute.Image) error
+	CreateImageAlpha(project string, i *computeAlpha.Image) error
 	CreateImageBeta(project string, i *computeBeta.Image) error
 	CreateInstance(project, zone string, i *compute.Instance) error
+	CreateInstanceAlpha(project, zone string, i *computeAlpha.Instance) error
 	CreateInstanceBeta(project, zone string, i *computeBeta.Instance) error
 	CreateNetwork(project string, n *compute.Network) error
 	CreateSnapshot(project, zone, disk string, s *compute.Snapshot) error
@@ -62,18 +62,22 @@ type Client interface {
 	DeleteSubnetwork(project, region, name string) error
 	DeleteTargetInstance(project, zone, name string) error
 	DeprecateImage(project, name string, deprecationstatus *compute.DeprecationStatus) error
+	DeprecateImageAlpha(project, name string, deprecationstatus *computeAlpha.DeprecationStatus) error
 	GetMachineType(project, zone, machineType string) (*compute.MachineType, error)
 	GetProject(project string) (*compute.Project, error)
 	GetSerialPortOutput(project, zone, name string, port, start int64) (*compute.SerialPortOutput, error)
 	GetZone(project, zone string) (*compute.Zone, error)
 	GetInstance(project, zone, name string) (*compute.Instance, error)
+	GetInstanceAlpha(project, zone, name string) (*computeAlpha.Instance, error)
 	GetInstanceBeta(project, zone, name string) (*computeBeta.Instance, error)
 	GetDisk(project, zone, name string) (*compute.Disk, error)
 	GetDiskAlpha(project, zone, name string) (*computeAlpha.Disk, error)
 	GetDiskBeta(project, zone, name string) (*computeBeta.Disk, error)
 	GetForwardingRule(project, region, name string) (*compute.ForwardingRule, error)
 	GetFirewallRule(project, name string) (*compute.Firewall, error)
+	GetGuestAttributes(project, zone, name, queryPath, variableKey string) (*compute.GuestAttributes, error)
 	GetImage(project, name string) (*compute.Image, error)
+	GetImageAlpha(project, name string) (*computeAlpha.Image, error)
 	GetImageBeta(project, name string) (*computeBeta.Image, error)
 	GetImageFromFamily(project, family string) (*compute.Image, error)
 	GetLicense(project, name string) (*compute.License, error)
@@ -93,6 +97,7 @@ type Client interface {
 	ListForwardingRules(project, zone string, opts ...ListCallOption) ([]*compute.ForwardingRule, error)
 	ListFirewallRules(project string, opts ...ListCallOption) ([]*compute.Firewall, error)
 	ListImages(project string, opts ...ListCallOption) ([]*compute.Image, error)
+	ListImagesAlpha(project string, opts ...ListCallOption) ([]*computeAlpha.Image, error)
 	GetSnapshot(project, name string) (*compute.Snapshot, error)
 	ListSnapshots(project string, opts ...ListCallOption) ([]*compute.Snapshot, error)
 	DeleteSnapshot(project, name string) error
@@ -106,7 +111,6 @@ type Client interface {
 	SetDiskAutoDelete(project, zone, instance string, autoDelete bool, deviceName string) error
 
 	// Beta API calls
-	GetGuestAttributes(project, zone, name, queryPath, variableKey string) (*computeBeta.GuestAttributes, error)
 	ListMachineImages(project string, opts ...ListCallOption) ([]*computeBeta.MachineImage, error)
 	DeleteMachineImage(project, name string) error
 	CreateMachineImage(project string, i *computeBeta.MachineImage) error
@@ -131,7 +135,11 @@ func (o OrderBy) listCallOptionApply(i interface{}) interface{} {
 	switch c := i.(type) {
 	case *compute.FirewallsListCall:
 		return c.OrderBy(string(o))
+	case *computeAlpha.ImagesListCall:
+		return c.OrderBy(string(o))
 	case *compute.ImagesListCall:
+		return c.OrderBy(string(o))
+	case *computeAlpha.MachineImagesListCall:
 		return c.OrderBy(string(o))
 	case *computeBeta.MachineImagesListCall:
 		return c.OrderBy(string(o))
@@ -166,7 +174,11 @@ func (o Filter) listCallOptionApply(i interface{}) interface{} {
 	switch c := i.(type) {
 	case *compute.FirewallsListCall:
 		return c.Filter(string(o))
+	case *computeAlpha.ImagesListCall:
+		return c.Filter(string(o))
 	case *compute.ImagesListCall:
+		return c.Filter(string(o))
+	case *computeAlpha.MachineImagesListCall:
 		return c.Filter(string(o))
 	case *computeBeta.MachineImagesListCall:
 		return c.Filter(string(o))
@@ -225,6 +237,10 @@ func shouldRetryWithWait(tripper http.RoundTripper, err error, multiplier int) b
 	var retry bool
 	switch {
 	case !ok && (strings.Contains(err.Error(), "connection reset by peer") || strings.Contains(err.Error(), "unexpected EOF")):
+		retry = true
+	case !ok && (strings.Contains(err.Error(), "server sent GOAWAY") || strings.Contains(err.Error(), "ENHANCE_YOUR_CALM")):
+		// The wait operation can return GOAWAY/ENHANCE_YOUR_CALM messages, so doubling the wait multiplier as it based on the retry count.
+		multiplier = multiplier * 2
 		retry = true
 	case !ok && tkValid:
 		// Not a googleapi.Error and the token is still valid.
@@ -371,7 +387,7 @@ func (c *client) operationsWaitHelper(project, name string, getOperation operati
 // status response indicates the request should be attempted again or the
 // oauth Token is no longer valid.
 func (c *client) Retry(f func(opts ...googleapi.CallOption) (*compute.Operation, error), opts ...googleapi.CallOption) (op *compute.Operation, err error) {
-	for i := 1; i < retries+1; i++ {
+	for i := 1; i < 4; i++ {
 		op, err = f(opts...)
 		if err == nil {
 			return op, nil
@@ -387,7 +403,7 @@ func (c *client) Retry(f func(opts ...googleapi.CallOption) (*compute.Operation,
 // status response indicates the request should be attempted again or the
 // oauth Token is no longer valid.
 func (c *client) RetryBeta(f func(opts ...googleapi.CallOption) (*computeBeta.Operation, error), opts ...googleapi.CallOption) (op *computeBeta.Operation, err error) {
-	for i := 1; i < retries+1; i++ {
+	for i := 1; i < 4; i++ {
 		op, err = f(opts...)
 		if err == nil {
 			return op, nil
@@ -403,7 +419,7 @@ func (c *client) RetryBeta(f func(opts ...googleapi.CallOption) (*computeBeta.Op
 // status response indicates the request should be attempted again or the
 // oauth Token is no longer valid.
 func (c *client) RetryAlpha(f func(opts ...googleapi.CallOption) (*computeAlpha.Operation, error), opts ...googleapi.CallOption) (op *computeAlpha.Operation, err error) {
-	for i := 1; i < retries+1; i++ {
+	for i := 1; i < 4; i++ {
 		op, err = f(opts...)
 		if err == nil {
 			return op, nil
@@ -573,6 +589,28 @@ func (c *client) CreateImageBeta(project string, i *computeBeta.Image) error {
 	return nil
 }
 
+// CreateImageAlpha creates a GCE image using Alpha API.
+// Only one of sourceDisk or sourceFile must be specified, sourceDisk is the
+// url (full or partial) to the source disk, sourceFile is the full Google
+// Cloud Storage URL where the disk image is stored.
+func (c *client) CreateImageAlpha(project string, i *computeAlpha.Image) error {
+	op, err := c.RetryAlpha(c.rawAlpha.Images.Insert(project, i).Do)
+	if err != nil {
+		return err
+	}
+
+	if err := c.i.globalOperationsWait(project, op.Name); err != nil {
+		return err
+	}
+
+	var createdImage *computeAlpha.Image
+	if createdImage, err = c.i.GetImageAlpha(project, i.Name); err != nil {
+		return err
+	}
+	*i = *createdImage
+	return nil
+}
+
 func (c *client) CreateInstance(project, zone string, i *compute.Instance) error {
 	op, err := c.Retry(c.raw.Instances.Insert(project, zone, i).Do)
 	if err != nil {
@@ -585,6 +623,25 @@ func (c *client) CreateInstance(project, zone string, i *compute.Instance) error
 
 	var createdInstance *compute.Instance
 	if createdInstance, err = c.i.GetInstance(project, zone, i.Name); err != nil {
+		return err
+	}
+	*i = *createdInstance
+	return nil
+}
+
+// CreateInstanceAlpha creates a GCE image using Alpha API.
+func (c *client) CreateInstanceAlpha(project, zone string, i *computeAlpha.Instance) error {
+	op, err := c.RetryAlpha(c.rawAlpha.Instances.Insert(project, zone, i).Do)
+	if err != nil {
+		return err
+	}
+
+	if err := c.i.zoneOperationsWait(project, zone, op.Name); err != nil {
+		return err
+	}
+
+	var createdInstance *computeAlpha.Instance
+	if createdInstance, err = c.i.GetInstanceAlpha(project, zone, i.Name); err != nil {
 		return err
 	}
 	*i = *createdInstance
@@ -786,6 +843,15 @@ func (c *client) DeprecateImage(project, name string, deprecationstatus *compute
 	return c.i.globalOperationsWait(project, op.Name)
 }
 
+// DeprecateImageAlpha sets deprecation status on a GCE image using the Alpha API.
+func (c *client) DeprecateImageAlpha(project, name string, deprecationstatus *computeAlpha.DeprecationStatus) error {
+	op, err := c.RetryAlpha(c.rawAlpha.Images.Deprecate(project, name, deprecationstatus).Do)
+	if err != nil {
+		return err
+	}
+	return c.i.globalOperationsWait(project, op.Name)
+}
+
 // GetMachineType gets a GCE MachineType.
 func (c *client) GetMachineType(project, zone, machineType string) (*compute.MachineType, error) {
 	mt, err := c.raw.MachineTypes.Get(project, zone, machineType).Do()
@@ -903,7 +969,16 @@ func (c *client) GetInstance(project, zone, name string) (*compute.Instance, err
 	return i, err
 }
 
-// GetInstance gets a GCE Instance using GA API.
+// GetInstanceAlpha gets a GCE Instance using Alpha API.
+func (c *client) GetInstanceAlpha(project, zone, name string) (*computeAlpha.Instance, error) {
+	i, err := c.rawAlpha.Instances.Get(project, zone, name).Do()
+	if shouldRetryWithWait(c.hc.Transport, err, 2) {
+		return c.rawAlpha.Instances.Get(project, zone, name).Do()
+	}
+	return i, err
+}
+
+// GetInstanceBeta gets a GCE Instance using Beta API.
 func (c *client) GetInstanceBeta(project, zone, name string) (*computeBeta.Instance, error) {
 	i, err := c.rawBeta.Instances.Get(project, zone, name).Do()
 	if shouldRetryWithWait(c.hc.Transport, err, 2) {
@@ -1112,6 +1187,15 @@ func (c *client) GetImage(project, name string) (*compute.Image, error) {
 	return i, err
 }
 
+// GetImageAlpha gets a GCE Image using Alpha API
+func (c *client) GetImageAlpha(project, name string) (*computeAlpha.Image, error) {
+	i, err := c.rawAlpha.Images.Get(project, name).Do()
+	if shouldRetryWithWait(c.hc.Transport, err, 2) {
+		return c.rawAlpha.Images.Get(project, name).Do()
+	}
+	return i, err
+}
+
 // GetImageBeta gets a GCE Image using Beta API
 func (c *client) GetImageBeta(project, name string) (*computeBeta.Image, error) {
 	i, err := c.rawBeta.Images.Get(project, name).Do()
@@ -1137,6 +1221,31 @@ func (c *client) ListImages(project string, opts ...ListCallOption) ([]*compute.
 	call := c.raw.Images.List(project)
 	for _, opt := range opts {
 		call = opt.listCallOptionApply(call).(*compute.ImagesListCall)
+	}
+	for il, err := call.PageToken(pt).Do(); ; il, err = call.PageToken(pt).Do() {
+		if shouldRetryWithWait(c.hc.Transport, err, 2) {
+			il, err = call.PageToken(pt).Do()
+		}
+		if err != nil {
+			return nil, err
+		}
+		is = append(is, il.Items...)
+
+		if il.NextPageToken == "" {
+			return is, nil
+		}
+		pt = il.NextPageToken
+	}
+}
+
+// ListImagesAlpha gets a list of GCE Images using Alpha API.
+func (c *client) ListImagesAlpha(project string, opts ...ListCallOption) ([]*computeAlpha.Image, error) {
+	var is []*computeAlpha.Image
+	var pt string
+	call := c.rawAlpha.Images.List(project)
+
+	for _, opt := range opts {
+		call = opt.listCallOptionApply(call).(*computeAlpha.ImagesListCall)
 	}
 	for il, err := call.PageToken(pt).Do(); ; il, err = call.PageToken(pt).Do() {
 		if shouldRetryWithWait(c.hc.Transport, err, 2) {
@@ -1433,8 +1542,8 @@ func (c *client) SetCommonInstanceMetadata(project string, md *compute.Metadata)
 }
 
 // GetGuestAttributes gets a Guest Attributes.
-func (c *client) GetGuestAttributes(project, zone, name, queryPath, variableKey string) (*computeBeta.GuestAttributes, error) {
-	call := c.rawBeta.Instances.GetGuestAttributes(project, zone, name)
+func (c *client) GetGuestAttributes(project, zone, name, queryPath, variableKey string) (*compute.GuestAttributes, error) {
+	call := c.raw.Instances.GetGuestAttributes(project, zone, name)
 	if queryPath != "" {
 		call = call.QueryPath(queryPath)
 	}
