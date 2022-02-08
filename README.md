@@ -19,4 +19,3 @@ Other use-case examples:
 * Workflows for importing external physical or virtual disks to GCE.
 * GCE environment deployment.
 * Ad hoc GCE testing environment deployment and test running.
-

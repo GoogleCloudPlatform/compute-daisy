@@ -64,7 +64,6 @@ type TimeRecord struct {
 	EndTime   time.Time
 }
 
-// Var is a type with a flexible JSON representation. A Var can be represented
 // by either a string, or by this struct definition. A Var that is represented
 // by a string will unmarshal into the struct: {Value: <string>, Required: false, Description: ""}.
 type Var struct {
