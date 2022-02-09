@@ -1,5 +1,5 @@
 {
-  "Name": "daisy-e2e-tests",
+  "Name": "compute-daisy-e2e",
   "TestParallelCount": 30,
   "Tests": {
     "Sources upload/download": {
@@ -26,7 +26,7 @@
     "Step CreateNetworks": {
       "Path": "./step_create_networks.wf.json"
     },
-    "Step CreateNetworks": {
+    "Step CreateSnapshots": {
       "Path": "./step_create_snapshots.wf.json"
     },
     "Step DetachDisks": {
@@ -40,6 +40,6 @@
     },
     "Validate cloud logging": {
       "Path": "./validate_cloud_logging.wf.json"
-    },
+    }
   }
 }
