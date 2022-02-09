@@ -261,6 +261,8 @@ func (w *Workflow) Validate(ctx context.Context) DError {
 	return nil
 }
 
+// WorkflowModifier is a function type for functions that can modify a Workflow object.
+//
 // Deprecated: This will be removed in a future release.
 type WorkflowModifier func(*Workflow)
 
@@ -892,6 +894,9 @@ func stepsListen(names []string, chans map[string]chan DError) (string, DError) 
 	return name, nil
 }
 
+// IterateWorkflowSteps iterates over all workflow steps, including included
+// workflow steps, and calls cb callback function
+//
 // Deprecated: This will be removed in a future release.
 func (w *Workflow) IterateWorkflowSteps(cb func(step *Step)) {
 	for _, step := range w.Steps {
