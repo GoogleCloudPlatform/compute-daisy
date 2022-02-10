@@ -1,0 +1,84 @@
+# Copyright 2022 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+timeout: 500s
+
+substitutions:
+  _RELEASE: latest
+
+options:
+  machineType: E2_HIGHCPU_8
+
+steps:
+  # Retrieve the `daisy_workflows` directory from
+  # compute-image-tools.
+  #
+  # Historically the daisy image contained workflows from
+  # the daisy_workflows directory of compute-image-tools;
+  # at this point, given the number of consumers of this
+  # image, it'd be unsafe to remove these.
+  #
+  # TODO(b/218923083): Replace this with a solution that
+  # doesn't require re-building manual rebuild of compute-daisy
+  # if a workflow is updated in compute-image-tools.
+  - name: gcr.io/cloud-builders/git
+    args: [ clone, https://github.com/GoogleCloudPlatform/compute-image-tools.git ]
+
+  # Unit tests
+  - name: golang
+    id: test
+    entrypoint: /bin/bash
+    args: [ -c, go test -v ./... ]
+
+  # Create binaries for Linux, Windows, and OSX.
+  - name: golang
+    waitFor: [ test ]
+    id: linux
+    args: [ go, build, -o=/workspace/linux/daisy ]
+  - name: golang
+    waitFor: [ test ]
+    id: windows
+    args: [ go, build, -o=/workspace/windows/daisy ]
+    env: [ GOOS=windows ]
+  - name: golang
+    waitFor: [ test ]
+    id: osx
+    args: [ go, build, -o=/workspace/darwin/daisy ]
+    env: [ GOOS=darwin ]
+
+  # Create Docker image.
+  # Kaniko 1.7.0 has a bug that blocks pushing to private repos
+  # https://github.com/GoogleContainerTools/kaniko/issues/1821
+  - name: gcr.io/kaniko-project/executor:v1.6.0
+    waitFor: [ linux ]
+    args:
+      - --destination=gcr.io/$PROJECT_ID/daisy:$_RELEASE
+      - --destination=gcr.io/$PROJECT_ID/daisy:$COMMIT_SHA
+      - --context=/workspace
+      - --dockerfile=daisy.Dockerfile
+
+  # Upload binaries to GCS.
+  - name: gcr.io/cloud-builders/gsutil
+    waitFor: [ linux ]
+    args: [ cp, /workspace/linux/*, gs://$PROJECT_ID/$_RELEASE/linux/ ]
+  - name: gcr.io/cloud-builders/gsutil
+    waitFor: [ windows ]
+    args: [ cp, /workspace/windows/*, gs://$PROJECT_ID/$_RELEASE/windows/ ]
+  - name: gcr.io/cloud-builders/gsutil
+    waitFor: [ osx ]
+    args: [ cp, /workspace/darwin/*, gs://$PROJECT_ID/$_RELEASE/darwin/ ]
+
+  # Allow public reading of GCS artifacts.
+  - name: gcr.io/cloud-builders/gsutil
+    args: [ -m, acl, -r, ch, -u, AllUsers:R, gs://$PROJECT_ID/$_RELEASE/* ]
