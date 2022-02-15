@@ -1,0 +1,30 @@
+#  Copyright 2022 Google Inc. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http:#www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+schemaVersion: 2.0.0
+
+# This test verifies a few workflows to ensure that they
+# are packaged for legacy consumers. They are not included
+# when built locally in this repo; Concourse bundles them
+# for the image published to gcr.io/compute-image-tools/daisy.
+
+fileExistenceTests:
+- name: "Export"
+  path: "/workflows/export/export_disk.sh"
+  shouldExist: true
+  permissions: "-rw-r--r--"
+- name: "Export"
+  path: "/workflows/image_build/windows/bootstrap_install.ps1"
+  shouldExist: true
+  permissions: "-rw-r--r--"
