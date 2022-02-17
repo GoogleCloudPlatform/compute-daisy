@@ -19,7 +19,7 @@ WORKDIR /go/src/daisy
 # Pre cache mod dependencies; this speeds up local development builds when
 # changes are independent of the go module dependencies.
 COPY go.mod go.sum ./
-RUN go mod download && go mod verify
+RUN go mod download
 
 # Build daisy. CGO_ENABLED=0 forces static linking libc dependencies
 # so that the resulting binary can be used in scratch.
@@ -28,7 +28,7 @@ RUN CGO_ENABLED=0 go build -v -o /go/bin/daisy cli/main.go
 
 # Historically we included daisy workflows in the Docker image. This conditional
 # allows the Dockerfile to be built in this repo, resulting in an image
-# that doesn't include the daisy workflows. In councourse, we manually include
+# that doesn't include the daisy workflows. In concourse, we manually include
 # the workflows in the build context.
 RUN if [ ! -d "daisy_workflows" ] ; then mkdir daisy_workflows; echo done ; fi
 
