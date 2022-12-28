@@ -792,13 +792,25 @@ GuestAttribute:
 | Field Name | Type | Description |
 |------------|------|-------------|
 | KeyName | string | The key name to watch for. |
-| SuccessValue | string | *Optional* An expected value to be matched. If set,
-any other value will be considered a failure. If not set, any value will be
-considered a success. |
+| SuccessValue | string | *Optional* An expected value to be matched. |
 
 If the key specified by KeyName is found, the value will be compared to
 SuccessValue for determining success or failure of the step. If SuccessValue is
-not set, any value will be considered a success.
+not set, any value will be considered a success. This example step waits for vm
+"baz" to emit a guest attribute with key "DaisyResult" and value "Success":
+```json
+"step-name": {
+    "WaitForInstancesSignal": [
+        {
+            "Name": "baz",
+            "GuestAttribute": {
+                "KeyName": "DaisyResult",
+                "SuccessValue": "Success"
+            }
+        }
+    ]
+}
+```
 
 Setting Guest Attributes can be done using system utilities such as `curl` or
 from any scripting or programming language. See 
