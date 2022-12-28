@@ -75,7 +75,7 @@ type Client interface {
 	GetDiskBeta(project, zone, name string) (*computeBeta.Disk, error)
 	GetForwardingRule(project, region, name string) (*compute.ForwardingRule, error)
 	GetFirewallRule(project, name string) (*compute.Firewall, error)
-	GetGuestAttributes(project, zone, name, queryPath, variableKey string) (*compute.GuestAttributes, error)
+	GetGuestAttributes(project, zone, name, namespace, keyName string) (*compute.GuestAttributes, error)
 	GetImage(project, name string) (*compute.Image, error)
 	GetImageAlpha(project, name string) (*computeAlpha.Image, error)
 	GetImageBeta(project, name string) (*computeBeta.Image, error)
@@ -1544,14 +1544,9 @@ func (c *client) SetCommonInstanceMetadata(project string, md *compute.Metadata)
 }
 
 // GetGuestAttributes gets a Guest Attributes.
-func (c *client) GetGuestAttributes(project, zone, name, queryPath, variableKey string) (*compute.GuestAttributes, error) {
+func (c *client) GetGuestAttributes(project, zone, name, namespace, keyName string) (*compute.GuestAttributes, error) {
 	call := c.raw.Instances.GetGuestAttributes(project, zone, name)
-	if queryPath != "" {
-		call = call.QueryPath(queryPath)
-	}
-	if variableKey != "" {
-		call = call.VariableKey(variableKey)
-	}
+	call = call.VariableKey(fmt.Sprintf("%s/%s", namespace, keyName))
 	a, err := call.Do()
 	if shouldRetryWithWait(c.hc.Transport, err, 2) {
 		return call.Do()

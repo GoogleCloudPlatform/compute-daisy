@@ -27,7 +27,9 @@ import (
 )
 
 const (
-	defaultInterval = "10s"
+	defaultInterval           = "10s"
+	defaultGuestAttrNamespace = "daisy"
+	defaultGuestAttrKeyName   = "DaisyResult"
 )
 
 var (
@@ -79,6 +81,7 @@ type SerialOutput struct {
 // SuccessValue (if specified and non empty). If SuccessValue is set, any other
 // value in the key will cause the step to fail.
 type GuestAttribute struct {
+	Namespace    string `json:",omitempty"`
 	KeyName      string `json:",omitempty"`
 	SuccessValue string `json:",omitempty"`
 }
@@ -207,8 +210,10 @@ func waitForSerialOutput(s *Step, project, zone, name string, so *SerialOutput, 
 }
 
 func waitForGuestAttribute(s *Step, project, zone, name string, ga *GuestAttribute, interval time.Duration) DError {
+	ga.KeyName = strOr(ga.KeyName, defaultGuestAttrKeyName)
+	ga.Namespace = strOr(ga.Namespace, defaultGuestAttrNamespace)
 	w := s.w
-	msg := fmt.Sprintf("Instance %q: watching for key %s", name, ga.KeyName)
+	msg := fmt.Sprintf("Instance %q: watching for key %s/%s", name, ga.Namespace, ga.KeyName)
 	if ga.SuccessValue != "" {
 		msg += fmt.Sprintf(", SuccessValue: %q", ga.SuccessValue)
 	}
@@ -225,10 +230,10 @@ func waitForGuestAttribute(s *Step, project, zone, name string, ga *GuestAttribu
 		case <-s.w.Cancel:
 			return nil
 		case <-tick:
-			resp, err := w.ComputeClient.GetGuestAttributes(project, zone, name, "", ga.KeyName)
+			resp, err := w.ComputeClient.GetGuestAttributes(project, zone, name, ga.Namespace, ga.KeyName)
 			if err != nil {
 				if apiErr, ok := err.(*googleapi.Error); ok && apiErr.Code == 404 {
-					// 404 is OK
+					// 404 is OK, that means the key isn't present yet. Retry until timeout.
 					continue
 				}
 				status, sErr := w.ComputeClient.InstanceStatus(project, zone, name)
@@ -236,7 +241,6 @@ func waitForGuestAttribute(s *Step, project, zone, name string, ga *GuestAttribu
 					err = fmt.Errorf("%v, error getting InstanceStatus: %v", err, sErr)
 					errs++
 				} else {
-					err = fmt.Errorf("%v, InstanceStatus: %q", err, status)
 					errs = 0
 				}
 
@@ -245,13 +249,15 @@ func waitForGuestAttribute(s *Step, project, zone, name string, ga *GuestAttribu
 					continue
 				}
 
-				// Retry up to 3 times in a row on any error if we successfully got InstanceStatus.
+				// Permit up to 3 consecutive non-404 errors getting guest attrs so long as we can get instance
+				// status.
 				if errs < 3 {
 					continue
 				}
 
 				return Errf("WaitForInstancesSignal: instance %q: error getting guest attribute: %v", name, err)
 			}
+
 			if ga.SuccessValue != "" {
 				if resp.VariableValue != ga.SuccessValue {
 					errMsg := strings.TrimSpace(resp.VariableValue)
@@ -403,9 +409,6 @@ func validateForWaitForInstancesSignal(w *[]*InstanceSignal, s *Step) DError {
 			if i.SerialOutput.SuccessMatch == "" && len(i.SerialOutput.FailureMatch) == 0 {
 				return Errf("%q: cannot wait for instance signal via SerialOutput, no SuccessMatch or FailureMatch given", i.Name)
 			}
-		}
-		if i.GuestAttribute != nil && i.GuestAttribute.KeyName == "" {
-			return Errf("%q: cannot wait for instance signal via GuestAttribute, no KeyName given", i.Name)
 		}
 	}
 	return nil

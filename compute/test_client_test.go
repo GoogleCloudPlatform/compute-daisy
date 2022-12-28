@@ -91,7 +91,7 @@ func TestTestClient(t *testing.T) {
 		{"zone operation wait", func() { c.zoneOperationsWait("a", "b", "c") }, "/projects/a/zones/b/operations/c/wait?alt=json&prettyPrint=false"},
 		{"region operation wait", func() { c.regionOperationsWait("a", "b", "c") }, "/projects/a/regions/b/operations/c/wait?alt=json&prettyPrint=false"},
 		{"global operation wait", func() { c.globalOperationsWait("a", "b") }, "/projects/a/global/operations/b/wait?alt=json&prettyPrint=false"},
-		{"get guest attributes", func() { c.GetGuestAttributes("a", "b", "c", "d", "e") }, "/projects/a/zones/b/instances/c/getGuestAttributes?alt=json&prettyPrint=false&queryPath=d&variableKey=e"},
+		{"get guest attributes", func() { c.GetGuestAttributes("a", "b", "c", "d", "e") }, "/projects/a/zones/b/instances/c/getGuestAttributes?alt=json&prettyPrint=false&variableKey=d%2Fe"},
 		{"create machine image", func() { c.CreateMachineImage("a", &compute.MachineImage{}) }, "/projects/a/global/machineImages?alt=json&prettyPrint=false"},
 		{"get machine image", func() { c.GetMachineImage("a", "b") }, "/projects/a/global/machineImages/b?alt=json&prettyPrint=false"},
 		{"list machine images", func() { c.ListMachineImages("a", listOpts...) }, "/projects/a/global/machineImages?alt=json&filter=foo&orderBy=foo&pageToken=&prettyPrint=false"},
