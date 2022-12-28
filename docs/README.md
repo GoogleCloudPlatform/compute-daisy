@@ -2,7 +2,7 @@
 
 This folder is for documentation. Markdown files stored here are automatically
 converted into webpages on our [GitHub Pages
-site](https://googlecloudplatform.github.io/compute-image-tools/). For an intro
+site](https://googlecloudplatform.github.io/compute-daisy/). For an intro
 to GitHub Pages, see [What is GitHub
 Pages?](https://help.github.com/articles/what-is-github-pages/) and other
 documentation on [help.github.com](https://help.github.com).
