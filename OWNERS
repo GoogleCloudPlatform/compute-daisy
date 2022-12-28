@@ -1,9 +1,12 @@
 approvers:
   - adjackura
-reviewers:
   - hopkiw
-  - illfelder
   - zmarano
-  - zoran15
+  - dntczdx
+  - bkatyl
+reviewers:
+  - adjackura
+  - hopkiw
+  - zmarano
   - dntczdx
   - bkatyl
