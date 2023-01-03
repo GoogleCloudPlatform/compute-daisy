@@ -212,8 +212,9 @@ func waitForSerialOutput(s *Step, project, zone, name string, so *SerialOutput, 
 func waitForGuestAttribute(s *Step, project, zone, name string, ga *GuestAttribute, interval time.Duration) DError {
 	ga.KeyName = strOr(ga.KeyName, defaultGuestAttrKeyName)
 	ga.Namespace = strOr(ga.Namespace, defaultGuestAttrNamespace)
+	varkey := fmt.Sprintf("%s/%s", ga.Namespace, ga.KeyName)
 	w := s.w
-	msg := fmt.Sprintf("Instance %q: watching for key %s/%s", name, ga.Namespace, ga.KeyName)
+	msg := fmt.Sprintf("Instance %q: watching for key %s", name, varkey)
 	if ga.SuccessValue != "" {
 		msg += fmt.Sprintf(", SuccessValue: %q", ga.SuccessValue)
 	}
@@ -230,7 +231,7 @@ func waitForGuestAttribute(s *Step, project, zone, name string, ga *GuestAttribu
 		case <-s.w.Cancel:
 			return nil
 		case <-tick:
-			resp, err := w.ComputeClient.GetGuestAttributes(project, zone, name, ga.Namespace, ga.KeyName)
+			resp, err := w.ComputeClient.GetGuestAttributes(project, zone, name, "", varkey)
 			if err != nil {
 				if apiErr, ok := err.(*googleapi.Error); ok && apiErr.Code == 404 {
 					// 404 is OK, that means the key isn't present yet. Retry until timeout.
