@@ -791,20 +791,26 @@ GuestAttribute:
 
 | Field Name | Type | Description |
 |------------|------|-------------|
-| KeyName | string | The key name to watch for. |
+| Namespace | string | *Optional* The namespace of the key to watch for. Defaults to "daisy". |
+| KeyName | string | *Optional* The key name to watch for. Defaults to "DaisyResult". |
 | SuccessValue | string | *Optional* An expected value to be matched. |
 
-If the key specified by KeyName is found, the value will be compared to
-SuccessValue for determining success or failure of the step. If SuccessValue is
-not set, any value will be considered a success. This example step waits for vm
-"baz" to emit a guest attribute with key "DaisyResult" and value "Success":
+If the key specified by Namespace and KeyName is found, the value will be
+compared to SuccessValue for determining success or failure of the step. If
+SuccessValue is not set, any value will be considered a success. This example
+step waits for vm "foo" to emit a guest attribute with the default key and any
+value and for vm "bar" to emit key "CustomKey" with value "Success":
 ```json
 "step-name": {
     "WaitForInstancesSignal": [
         {
-            "Name": "baz",
+            "Name": "foo",
+            "GuestAttribute": { }
+        }
+        {
+            "Name": "bar",
             "GuestAttribute": {
-                "KeyName": "DaisyResult",
+                "KeyName": "CustomKey",
                 "SuccessValue": "Success"
             }
         }
