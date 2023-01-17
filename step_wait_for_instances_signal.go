@@ -27,9 +27,7 @@ import (
 )
 
 const (
-	defaultInterval           = "10s"
-	defaultGuestAttrNamespace = "daisy"
-	defaultGuestAttrKeyName   = "DaisyResult"
+	defaultInterval = "10s"
 )
 
 var (
@@ -210,9 +208,13 @@ func waitForSerialOutput(s *Step, project, zone, name string, so *SerialOutput, 
 }
 
 func waitForGuestAttribute(s *Step, project, zone, name string, ga *GuestAttribute, interval time.Duration) DError {
-	ga.KeyName = strOr(ga.KeyName, defaultGuestAttrKeyName)
-	ga.Namespace = strOr(ga.Namespace, defaultGuestAttrNamespace)
-	varkey := fmt.Sprintf("%s/%s", ga.Namespace, ga.KeyName)
+	var keyTokens []string
+	if ga.Namespace != "" {
+		keyTokens = append(keyTokens, ga.Namespace)
+	}
+	keyTokens = append(keyTokens, ga.KeyName)
+	varkey := strings.Join(keyTokens, "/")
+
 	w := s.w
 	msg := fmt.Sprintf("Instance %q: watching for key %s", name, varkey)
 	if ga.SuccessValue != "" {

@@ -158,7 +158,9 @@ func testWaitForSignalRun(t *testing.T, waitAny bool) {
 		{Name: "i1", interval: 1 * time.Microsecond, SerialOutput: &SerialOutput{SuccessMatch: "success", FailureMatch: []string{"fail"}}},
 		{Name: "i1", interval: 1 * time.Microsecond, SerialOutput: &SerialOutput{SuccessMatch: "success", FailureMatch: []string{"fail", "fail2"}}},
 		{Name: "i1", interval: 1 * time.Microsecond, GuestAttribute: &GuestAttribute{KeyName: "mynamespace/mykey"}},
+		{Name: "i1", interval: 1 * time.Microsecond, GuestAttribute: &GuestAttribute{Namespace: "mynamespace", KeyName: "mykey"}},
 		{Name: "i1", interval: 1 * time.Microsecond, GuestAttribute: &GuestAttribute{KeyName: "mynamespace/mykey", SuccessValue: "success"}},
+		{Name: "i1", interval: 1 * time.Microsecond, GuestAttribute: &GuestAttribute{Namespace: "mynamespace", KeyName: "mykey", SuccessValue: "success"}},
 		{Name: "i3", interval: 1 * time.Microsecond, Stopped: true},
 	})
 	if err := ws.run(ctx, s); err != nil {
@@ -169,6 +171,7 @@ func testWaitForSignalRun(t *testing.T, waitAny bool) {
 		{Name: "i2", interval: 1 * time.Microsecond, SerialOutput: &SerialOutput{FailureMatch: []string{"fail"}, SuccessMatch: "success"}},
 		{Name: "i3", interval: 1 * time.Microsecond, SerialOutput: &SerialOutput{FailureMatch: []string{"fail"}}},
 		{Name: "i2", interval: 1 * time.Microsecond, GuestAttribute: &GuestAttribute{KeyName: "mynamespace/mykey", SuccessValue: "success"}},
+		{Name: "i2", interval: 1 * time.Microsecond, GuestAttribute: &GuestAttribute{Namespace: "mynamespace", KeyName: "mykey", SuccessValue: "success"}},
 	})
 	if err := ws.run(ctx, s); err == nil {
 		t.Error("expected error")
