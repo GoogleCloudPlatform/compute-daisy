@@ -185,17 +185,17 @@ type Workflow struct {
 	cancelReason string
 }
 
-//DisableCloudLogging disables logging to Cloud Logging for this workflow.
+// DisableCloudLogging disables logging to Cloud Logging for this workflow.
 func (w *Workflow) DisableCloudLogging() {
 	w.cloudLoggingDisabled = true
 }
 
-//DisableGCSLogging disables logging to GCS for this workflow.
+// DisableGCSLogging disables logging to GCS for this workflow.
 func (w *Workflow) DisableGCSLogging() {
 	w.gcsLoggingDisabled = true
 }
 
-//DisableStdoutLogging disables logging to stdout for this workflow.
+// DisableStdoutLogging disables logging to stdout for this workflow.
 func (w *Workflow) DisableStdoutLogging() {
 	w.stdoutLoggingDisabled = true
 }

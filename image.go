@@ -99,7 +99,7 @@ func errIfDeprecatedOrDeleted(ic *compute.Image, image string) DError {
 	return nil
 }
 
-//ImageInterface represent abstract Image across different API stages (Alpha, Beta, API)
+// ImageInterface represent abstract Image across different API stages (Alpha, Beta, API)
 type ImageInterface interface {
 	getName() string
 	setName(name string)
@@ -118,7 +118,7 @@ type ImageInterface interface {
 	populateGuestOSFeatures()
 }
 
-//ImageBase is a base struct for GA/Beta/Alpha images. It holds the shared properties between them.
+// ImageBase is a base struct for GA/Beta/Alpha images. It holds the shared properties between them.
 type ImageBase struct {
 	Resource
 
