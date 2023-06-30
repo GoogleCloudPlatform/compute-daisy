@@ -31,13 +31,13 @@ import (
 	"cloud.google.com/go/storage"
 	daisyCompute "github.com/GoogleCloudPlatform/compute-daisy/compute"
 	"github.com/davecgh/go-spew/spew"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	godebugDiff "github.com/kylelemons/godebug/diff"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 	logpb "google.golang.org/genproto/googleapis/logging/v2"
 	"google.golang.org/grpc"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 const (
