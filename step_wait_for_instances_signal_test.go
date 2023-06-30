@@ -228,7 +228,7 @@ func testWaitForSignalValidate(t *testing.T, waitAny bool) {
 	w := testWorkflow()
 	s, _ := w.NewStep("s")
 	iCreator, _ := w.NewStep("iCreator")
-	iCreator.CreateInstances = &CreateInstances{Instances: []*Instance{&Instance{}}}
+	iCreator.CreateInstances = &CreateInstances{Instances: []*Instance{{}}}
 	w.AddDependency(s, iCreator)
 	if err := w.instances.regCreate("instance1", &Resource{link: fmt.Sprintf("projects/%s/zones/%s/disks/d", testProject, testZone)}, false, iCreator); err != nil {
 		t.Fatal(err)
