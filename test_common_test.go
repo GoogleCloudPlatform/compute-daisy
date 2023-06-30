@@ -306,7 +306,7 @@ func newTestGCSClient() (*storage.Client, error) {
 	getBktRgx := regexp.MustCompile(`/b/.+alt=json&prettyPrint=false&projection=full`)
 	deleteObjRgx := regexp.MustCompile(`/b/.+/o/.+alt=json`)
 	listObjsRgx := regexp.MustCompile(`/b/.+/o\?alt=json&delimiter=&endOffset=&includeTrailingDelimiter=false&matchGlob=&pageToken=&prefix=.+&projection=full.+`)
-	listObjsNoPrefixRgx := regexp.MustCompile(`/b/.+/o\?alt=json&delimiter=&pageToken=&prefix=&projection=full&versions=false`)
+	listObjsNoPrefixRgx := regexp.MustCompile(`/b/.+/o\?alt=json&delimiter=&endOffset=&includeTrailingDelimiter=false&matchGlob=&pageToken=&prefix=&projection=full&versions=false`)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		u := r.URL.String()

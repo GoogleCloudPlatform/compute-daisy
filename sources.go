@@ -160,6 +160,7 @@ func (w *Workflow) uploadSources(ctx context.Context) DError {
 			}
 			continue
 		}
+
 		// Local to GCS.
 		if !filepath.IsAbs(origPath) {
 			origPath = filepath.Join(w.workflowDir, origPath)
