@@ -118,6 +118,7 @@ func TestCopyGCSObjectsRun(t *testing.T) {
 	ctx := context.Background()
 	w := testWorkflow()
 	s := &Step{w: w}
+
 	ws := &CopyGCSObjects{
 		{Source: "gs://bucket", Destination: "gs://bucket"},
 		{Source: "gs://bucket/object", Destination: "gs://bucket/object"},
