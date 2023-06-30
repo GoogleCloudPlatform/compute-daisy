@@ -387,10 +387,6 @@ func newTestGCSClient() (*storage.Client, error) {
 			fmt.Fprint(w, `{}`)
 		} else if m == "POST" && u == "/b?alt=json&prettyPrint=false&project=foo-project" {
 			fmt.Fprint(w, `{}`)
-		} else if m == "GET" && u == "/b/bucket/o?alt=json&delimiter=&endOffset=&includeTrailingDelimiter=false&matchGlob=&pageToken=&prefix=&prettyPrint=false&projection=full&startOffset=&versions=false" {
-			fmt.Fprint(w, `{}`)
-		} else if m == "GET" && u == "/b/folder/o?alt=json&delimiter=&endOffset=&includeTrailingDelimiter=false&matchGlob=&pageToken=&prefix=&prettyPrint=false&projection=full&startOffset=&versions=false" {
-			fmt.Fprint(w, `{}`)
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, "testGCSClient unknown request: %+v\n", r)
