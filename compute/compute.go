@@ -82,6 +82,7 @@ type Client interface {
 	GetImageFromFamily(project, family string) (*compute.Image, error)
 	GetLicense(project, name string) (*compute.License, error)
 	GetNetwork(project, name string) (*compute.Network, error)
+	GetRegion(project, region string) (*compute.Region, error)
 	GetSubnetwork(project, region, name string) (*compute.Subnetwork, error)
 	GetTargetInstance(project, zone, name string) (*compute.TargetInstance, error)
 	InstanceStatus(project, zone, name string) (string, error)
@@ -1333,6 +1334,15 @@ func (c *client) GetNetwork(project, name string) (*compute.Network, error) {
 	n, err := c.raw.Networks.Get(project, name).Do()
 	if shouldRetryWithWait(c.hc.Transport, err, 2) {
 		return c.raw.Networks.Get(project, name).Do()
+	}
+	return n, err
+}
+
+// GetRegion gets a GCE Region
+func (c *client) GetRegion(project, name string) (*compute.Region, error) {
+	n, err := c.raw.Regions.Get(project, name).Do()
+	if shouldRetryWithWait(c.hc.Transport, err, 2) {
+		return c.raw.Regions.Get(project, name).Do()
 	}
 	return n, err
 }

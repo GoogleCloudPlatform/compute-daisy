@@ -81,6 +81,7 @@ func TestTestClient(t *testing.T) {
 		{"get subnetwork", func() { c.GetSubnetwork("a", "b", "c") }, "/projects/a/regions/b/subnetworks/c?alt=json&prettyPrint=false"},
 		{"aggregated list subnetworks", func() { c.AggregatedListSubnetworks("a", listOpts...) }, "/projects/a/aggregated/subnetworks?alt=json&filter=foo&orderBy=foo&pageToken=&prettyPrint=false"},
 		{"list subnetworks", func() { c.ListSubnetworks("a", "b", listOpts...) }, "/projects/a/regions/b/subnetworks?alt=json&filter=foo&orderBy=foo&pageToken=&prettyPrint=false"},
+		{"get region", func() { c.GetRegion("a", "b") }, "/projects/a/regions/b?alt=json&prettyPrint=false"},
 		{"get disk", func() { c.GetDisk("a", "b", "c") }, "/projects/a/zones/b/disks/c?alt=json&prettyPrint=false"},
 		{"aggregated list disks", func() { c.AggregatedListDisks("a", listOpts...) }, "/projects/a/aggregated/disks?alt=json&filter=foo&orderBy=foo&pageToken=&prettyPrint=false"},
 		{"list disks", func() { c.ListDisks("a", "b", listOpts...) }, "/projects/a/zones/b/disks?alt=json&filter=foo&orderBy=foo&pageToken=&prettyPrint=false"},
@@ -197,6 +198,7 @@ func TestTestClient(t *testing.T) {
 		fakeCalled = true
 		return nil, nil
 	}
+	c.GetRegionFn = func(_, _ string) (*compute.Region, error) { fakeCalled = true; return nil, nil }
 	c.GetMachineTypeFn = func(_, _, _ string) (*compute.MachineType, error) { fakeCalled = true; return nil, nil }
 	c.ListMachineTypesFn = func(_, _ string, _ ...ListCallOption) ([]*compute.MachineType, error) {
 		fakeCalled = true

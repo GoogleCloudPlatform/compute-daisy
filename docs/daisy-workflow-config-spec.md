@@ -31,6 +31,7 @@
     * [SubWorkflow](#type-subworkflow)
     * [WaitForInstancesSignal](#type-waitforinstancessignal)
     * [UpdateInstancesMetadata](#type-updateinstancesmetadata)
+    * [WaitForAvailableQuotas](#type-waitforavailablequotas)
   * [Dependencies](#dependencies)
   * [Vars](#vars)
     * [Autovars](#autovars)
@@ -847,6 +848,40 @@ This UpdateInstancesMetadata step example updating an instance metadata in the p
   ]
 }
 ```
+
+
+#### Type: WaitForAvailableQuotas
+Wait for available quotas. Given a list of quotas, wait until they are all simultenously available and return.
+
+| Field Name | Type | Description |
+|------------|------|-------------|
+| Interval (Optional) | string | The interval to poll for quotas (default is 5 seconds). |
+| Quotas | []QuotaAvailabe | List of quotas to query for. |
+
+
+AvailableQuotas:
+A representation of a desired quantity of available quota.
+
+| Field Name | Type | Description |
+|------------|------|-------------|
+| Interval (Optional) | string | The interval to poll for quotas (default is 5 seconds). |
+| Quotas | []QuotaAvailabe | List of quotas to query for. |
+
+```json
+"step-name": {
+  "WaitForAvailableQuotas": {
+    "Interval": "1s",
+    "Quotas": [
+      {
+        "Metric" : "N2_CPUS",
+        "Region": "us-central1-a",
+        "Units": 42.5,
+      }
+    ]
+  }
+}
+```
+
 
 ### Dependencies
 

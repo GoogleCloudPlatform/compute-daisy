@@ -97,6 +97,7 @@ type TestClient struct {
 	GetLicenseFn                func(project, name string) (*compute.License, error)
 	ListLicensesFn              func(project string, opts ...ListCallOption) ([]*compute.License, error)
 	GetNetworkFn                func(project, name string) (*compute.Network, error)
+	GetRegionFn                 func(project, name string) (*compute.Region, error)
 	AggregatedListSubnetworksFn func(project string, opts ...ListCallOption) ([]*compute.Subnetwork, error)
 	ListNetworksFn              func(project string, opts ...ListCallOption) ([]*compute.Network, error)
 	GetSubnetworkFn             func(project, region, name string) (*compute.Subnetwork, error)
@@ -499,6 +500,14 @@ func (c *TestClient) GetNetwork(project, name string) (*compute.Network, error) 
 		return c.GetNetworkFn(project, name)
 	}
 	return c.client.GetNetwork(project, name)
+}
+
+// GetRegion uses the override method GetRegionFn or the real implementation.
+func (c *TestClient) GetRegion(project, name string) (*compute.Region, error) {
+	if c.GetRegionFn != nil {
+		return c.GetRegionFn(project, name)
+	}
+	return c.client.GetRegion(project, name)
 }
 
 // ListNetworks uses the override method ListNetworksFn or the real implementation.
