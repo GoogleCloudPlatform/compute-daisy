@@ -67,6 +67,7 @@ type Step struct {
 	SubWorkflow               *SubWorkflow               `json:",omitempty"`
 	WaitForInstancesSignal    *WaitForInstancesSignal    `json:",omitempty"`
 	WaitForAnyInstancesSignal *WaitForAnyInstancesSignal `json:",omitempty"`
+	WaitForAvailableQuotas    *WaitForAvailableQuotas    `json:",omitempty"`
 	UpdateInstancesMetadata   *UpdateInstancesMetadata   `json:",omitempty"`
 	// Used for unit tests.
 	testType stepImpl
@@ -176,6 +177,10 @@ func (s *Step) stepImpl() (stepImpl, DError) {
 	if s.WaitForAnyInstancesSignal != nil {
 		matchCount++
 		result = s.WaitForAnyInstancesSignal
+	}
+	if s.WaitForAvailableQuotas != nil {
+		matchCount++
+		result = s.WaitForAvailableQuotas
 	}
 	if s.UpdateInstancesMetadata != nil {
 		matchCount++

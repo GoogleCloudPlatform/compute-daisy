@@ -25,6 +25,7 @@ const (
 	fileIOError               = "FileIOError"
 	resourceDNEError          = "ResourceDoesNotExist"
 	imageObsoleteDeletedError = "ImageObsoleteOrDeleted"
+	invalidInputError         = "InvalidInputError"
 
 	apiError    = "APIError"
 	apiError404 = "APIError404"
