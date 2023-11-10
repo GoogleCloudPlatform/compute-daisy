@@ -279,7 +279,7 @@ func TestDiskRegDetachAll(t *testing.T) {
 	// - error from helper
 	// - skip already detached
 	w := testWorkflow()
-	w.cloudLoggingClient = nil
+	w.CloudLoggingClient = nil
 	s, _ := w.NewStep("s")
 	otherDetacher, _ := w.NewStep("other-detacher")
 

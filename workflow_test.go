@@ -679,7 +679,7 @@ func TestPopulate(t *testing.T) {
 	want.Cancel = got.Cancel
 	want.cleanupHooks = got.cleanupHooks
 	want.StorageClient = got.StorageClient
-	want.cloudLoggingClient = got.cloudLoggingClient
+	want.CloudLoggingClient = got.CloudLoggingClient
 	want.Logger = got.Logger
 	want.disks = newDiskRegistry(want)
 	want.images = newImageRegistry(want)
@@ -1122,30 +1122,30 @@ func TestPopulateClients(t *testing.T) {
 		t.Errorf("Did not populate storage client.")
 	}
 
-	initialCloudLoggingClient := w.cloudLoggingClient
+	initialCloudLoggingClient := w.CloudLoggingClient
 	tryPopulateClients(t, w)
-	if w.cloudLoggingClient != initialCloudLoggingClient {
+	if w.CloudLoggingClient != initialCloudLoggingClient {
 		t.Errorf("Should not repopulate logging client.")
 	}
 
-	w.cloudLoggingClient = nil
+	w.CloudLoggingClient = nil
 	w.externalLogging = false
 	tryPopulateClients(t, w)
-	if w.cloudLoggingClient != nil {
+	if w.CloudLoggingClient != nil {
 		t.Errorf("Should not populate Cloud Logging client.")
 	}
 
-	w.cloudLoggingClient = nil
+	w.CloudLoggingClient = nil
 	w.externalLogging = true
 	tryPopulateClients(t, w)
-	if w.cloudLoggingClient == nil {
+	if w.CloudLoggingClient == nil {
 		t.Errorf("Did not populate Cloud Logging client.")
 	}
 
-	w.cloudLoggingClient = nil
+	w.CloudLoggingClient = nil
 	w.DisableCloudLogging()
 	tryPopulateClients(t, w)
-	if w.cloudLoggingClient != nil {
+	if w.CloudLoggingClient != nil {
 		t.Errorf("Cloud Logging client populated when Cloud Logging is disabled.")
 	}
 

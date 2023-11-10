@@ -112,7 +112,7 @@ func testWorkflow() *Workflow {
 	w.Zone = testZone
 	w.ComputeClient, _ = newTestGCEClient()
 	w.StorageClient, _ = newTestGCSClient()
-	w.cloudLoggingClient, _ = newTestLoggingClient()
+	w.CloudLoggingClient, _ = newTestLoggingClient()
 	w.Cancel = make(chan struct{})
 	w.Logger = &MockLogger{}
 	return w

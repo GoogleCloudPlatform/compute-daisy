@@ -225,7 +225,7 @@ func TestNetworkRegDisconnectAll(t *testing.T) {
 	// - error from helper
 	// - skip already disconnected
 	w := testWorkflow()
-	w.cloudLoggingClient = nil
+	w.CloudLoggingClient = nil
 	s, _ := w.NewStep("s")
 	otherDisconnector, _ := w.NewStep("other-disconnector")
 
