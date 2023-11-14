@@ -51,7 +51,7 @@ func (i *IncludeWorkflow) populate(ctx context.Context, s *Step) DError {
 	i.Workflow.username = i.Workflow.parent.username
 	i.Workflow.ComputeClient = i.Workflow.parent.ComputeClient
 	i.Workflow.StorageClient = i.Workflow.parent.StorageClient
-	i.Workflow.cloudLoggingClient = i.Workflow.parent.cloudLoggingClient
+	i.Workflow.CloudLoggingClient = i.Workflow.parent.CloudLoggingClient
 	i.Workflow.GCSPath = i.Workflow.parent.GCSPath
 	i.Workflow.Name = i.Workflow.parent.Name
 	i.Workflow.Project = i.Workflow.parent.Project

@@ -142,7 +142,7 @@ type Workflow struct {
 	ComputeEndpoint    string          `json:",omitempty"`
 	ComputeClient      compute.Client  `json:"-"`
 	StorageClient      *storage.Client `json:"-"`
-	cloudLoggingClient *logging.Client
+	CloudLoggingClient *logging.Client `json:"-"`
 
 	// Resource registries.
 	disks           *diskRegistry
@@ -416,8 +416,8 @@ func (w *Workflow) PopulateClients(ctx context.Context, options ...option.Client
 		}
 	}
 
-	if w.externalLogging && !w.cloudLoggingDisabled && w.cloudLoggingClient == nil {
-		w.cloudLoggingClient, err = logging.NewClient(ctx, w.Project, loggingOptions...)
+	if w.externalLogging && !w.cloudLoggingDisabled && w.CloudLoggingClient == nil {
+		w.CloudLoggingClient, err = logging.NewClient(ctx, w.Project, loggingOptions...)
 		if err != nil {
 			return err
 		}

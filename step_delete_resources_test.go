@@ -155,7 +155,7 @@ func TestDeleteResourcesValidate(t *testing.T) {
 	ctx := context.Background()
 	// Set up.
 	w := testWorkflow()
-	w.cloudLoggingClient = nil
+	w.CloudLoggingClient = nil
 	dC, _ := w.NewStep("dCreator")
 	imC, _ := w.NewStep("imCreator")
 	miC, _ := w.NewStep("miCreator")
