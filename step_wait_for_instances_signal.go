@@ -92,12 +92,16 @@ type InstanceSignal struct {
 	// Must be parsable by https://golang.org/pkg/time/#ParseDuration.
 	Interval string `json:",omitempty"`
 	interval time.Duration
+	// DEPRECATED use Status signal instead
 	// Wait for the instance to stop.
 	Stopped bool `json:",omitempty"`
 	// Wait for a string match in the serial output.
 	SerialOutput *SerialOutput `json:",omitempty"`
 	// Wait for a key or value match in guest attributes.
 	GuestAttribute *GuestAttribute `json:",omitempty"`
+	// Wait for the instance to have one of the given statuses
+	// Cannot be set at the same time as Stopped
+	Status []string `json:",omitempty"`
 }
 
 func waitForInstanceStopped(s *Step, project, zone, name string, interval time.Duration) DError {
@@ -116,6 +120,29 @@ func waitForInstanceStopped(s *Step, project, zone, name string, interval time.D
 			if stopped {
 				w.LogStepInfo(s.name, "WaitForInstancesSignal", "Instance %q stopped.", name)
 				return nil
+			}
+		}
+	}
+}
+
+func waitForInstanceStatus(s *Step, project, zone, name string, interval time.Duration, target []string) DError {
+	w := s.w
+	w.LogStepInfo(s.name, "WaitForInstancesSignal", "Waiting for instance %q to have status one of %v.", name, target)
+	tick := time.Tick(interval)
+	for {
+		select {
+		case <-s.w.Cancel:
+			return nil
+		case <-tick:
+			status, err := s.w.ComputeClient.InstanceStatus(project, zone, name)
+			if err != nil {
+				return typedErr(apiError, fmt.Sprintf("failed to check instance %s status", name), err)
+			}
+			for _, tstatus := range target {
+				if status == tstatus {
+					w.LogStepInfo(s.name, "WaitForInstancesSignal", "Instance %q is %s, done waiting for status.", name, tstatus)
+					return nil
+				}
 			}
 		}
 	}
@@ -334,13 +361,20 @@ func runForWaitForInstancesSignal(w *[]*InstanceSignal, s *Step, waitAll bool) D
 			m := NamedSubexp(instanceURLRgx, i.link)
 			serialSig := make(chan struct{})
 			guestSig := make(chan struct{})
-			stoppedSig := make(chan struct{})
+			statusSig := make(chan struct{})
 			if is.Stopped {
 				go func() {
 					if err := waitForInstanceStopped(s, m["project"], m["zone"], m["instance"], is.interval); err != nil {
 						e <- err
 					}
-					close(stoppedSig)
+					close(statusSig)
+				}()
+			} else if len(is.Status) > 0 {
+				go func() {
+					if err := waitForInstanceStatus(s, m["project"], m["zone"], m["instance"], is.interval, is.Status); err != nil {
+						e <- err
+					}
+					close(statusSig)
 				}()
 			}
 			if is.SerialOutput != nil {
@@ -366,7 +400,7 @@ func runForWaitForInstancesSignal(w *[]*InstanceSignal, s *Step, waitAll bool) D
 				return
 			case <-serialSig:
 				return
-			case <-stoppedSig:
+			case <-statusSig:
 				return
 			}
 		}(is)
@@ -402,7 +436,10 @@ func validateForWaitForInstancesSignal(w *[]*InstanceSignal, s *Step) DError {
 		if i.interval == 0*time.Second {
 			return Errf("%q: cannot wait for instance signal, no interval given", i.Name)
 		}
-		if i.SerialOutput == nil && i.GuestAttribute == nil && i.Stopped == false {
+		if i.Stopped && len(i.Status) > 0 {
+			return Errf("%q: Stopped and Status cannot be set simultaneously", i.Name)
+		}
+		if i.SerialOutput == nil && i.GuestAttribute == nil && i.Stopped == false && len(i.Status) < 1 {
 			return Errf("%q: cannot wait for instance signal, nothing to wait for", i.Name)
 		}
 		if i.SerialOutput != nil {

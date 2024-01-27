@@ -51,6 +51,29 @@ func TestWaitForInstanceStopped(t *testing.T) {
 	}
 }
 
+func TestWaitForInstanceStatus(t *testing.T) {
+	w := testWorkflow()
+
+	svr, c, err := daisyCompute.NewTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" && r.URL.String() == fmt.Sprintf("/projects/%s/zones/%s/instances/%s?alt=json&prettyPrint=false", testProject, testZone, "foo") {
+			fmt.Fprint(w, `{"Status":"SUSPENDING"}`)
+		} else {
+			w.WriteHeader(500)
+			fmt.Fprintln(w, "URL and Method not recognized:", r.Method, r.URL)
+		}
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer svr.Close()
+
+	w.ComputeClient = c
+	s := &Step{name: "foo", w: w}
+	if err := waitForInstanceStatus(s, testProject, testZone, "foo", 1*time.Microsecond, []string{"SUSPENDING"}); err != nil {
+		t.Fatalf("error running waitForInstanceStatus: %v", err)
+	}
+}
+
 func TestWaitForInstancesSignalPopulate(t *testing.T) {
 	testWaitForSignalPopulate(t, false)
 }
