@@ -53,7 +53,11 @@ func (sn *Subnetwork) populate(ctx context.Context, s *Step) DError {
 	sn.Name, errs = sn.Resource.populateWithGlobal(ctx, s, sn.Name)
 
 	sn.Description = strOr(sn.Description, defaultDescription("Subnetwork", s.w.Name, s.w.username))
-	sn.link = fmt.Sprintf("projects/%s/regions/%s/subnetworks/%s", sn.Project, getRegionFromZone(s.w.Zone), sn.Name)
+	r := sn.Region
+	if r == "" {
+		r = getRegionFromZone(s.w.Zone)
+	}
+	sn.link = fmt.Sprintf("projects/%s/regions/%s/subnetworks/%s", sn.Project, r, sn.Name)
 	return errs
 }
 
