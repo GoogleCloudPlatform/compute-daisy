@@ -747,9 +747,10 @@ VM has the following fields:
 |------------|------|-------------|
 | Name | string | The Name or [partial URL](#glossary-partialurl) of the VM. |
 | Interval | string ([Golang's time.Duration format](https://golang.org/pkg/time/#Duration.String)) | The signal polling interval. |
-| Stopped | bool | Use the VM stopping as the signal. |
+| Stopped | bool | (DEPRECTATED use Status) Use the VM stopping as the signal. |
 | SerialOutput | SerialOutput (see below) | Parse the serial port output for a signal. |
 | GuestAttribute | GuestAttribute (see below) | Parse guest attributes for a signal. |
+| Status | []string | Wait for one of the given strings in the instance status field. |
 
 SerialOutput:
 
@@ -768,7 +769,7 @@ stop and for a signal from VM "bar":
     "WaitForInstancesSignal": [
         {
             "Name": "foo",
-            "Stopped": true
+            "Status": ["STOPPED", "TERMINATED"]
         },
         {
             "Name": "bar",
