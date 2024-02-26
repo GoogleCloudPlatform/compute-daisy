@@ -485,3 +485,29 @@ func TestDetachDisk(t *testing.T) {
 		t.Fatalf("error running DetachDisk: %v", err)
 	}
 }
+
+func TestSuspendResume(t *testing.T) {
+	svr, c, err := NewTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" && r.URL.String() == fmt.Sprintf("/projects/%s/zones/%s/instances/%s/suspend?alt=json&prettyPrint=false", testProject, testZone, testInstance) {
+			fmt.Fprint(w, `{}`)
+		} else if r.Method == "POST" && r.URL.String() == fmt.Sprintf("/projects/%s/zones/%s/operations//wait?alt=json&prettyPrint=false", testProject, testZone) {
+			fmt.Fprint(w, `{"Status":"DONE"}`)
+		} else if r.Method == "POST" && r.URL.String() == fmt.Sprintf("/projects/%s/zones/%s/instances/%s/resume?alt=json&prettyPrint=false", testProject, testZone, testInstance) {
+			fmt.Fprint(w, `{}`)
+		} else {
+			w.WriteHeader(500)
+			fmt.Fprintln(w, "URL and Method not recognized:", r.Method, r.URL)
+		}
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer svr.Close()
+
+	if err := c.Suspend(testProject, testZone, testInstance); err != nil {
+		t.Fatalf("error running Suspend: %v", err)
+	}
+	if err := c.Resume(testProject, testZone, testInstance); err != nil {
+		t.Fatalf("error running Resume: %v", err)
+	}
+}
