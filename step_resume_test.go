@@ -15,9 +15,9 @@
 package daisy
 
 import (
-	"net/http"
-	"fmt"
 	"context"
+	"fmt"
+	"net/http"
 	"testing"
 
 	daisyCompute "github.com/GoogleCloudPlatform/compute-daisy/compute"
@@ -42,7 +42,7 @@ func TestResumePopulate(t *testing.T) {
 	s, _ = w.NewStep("sp-nooverwrite")
 	s.Resume = &Resume{
 		Project: "no-overwrite",
-		Zone: "no-overwrite",
+		Zone:    "no-overwrite",
 	}
 	if err := w.populate(ctx); err != nil {
 		t.Errorf("got error populating resume step: %v", err)
@@ -73,34 +73,34 @@ func TestResumeValidate(t *testing.T) {
 }
 
 func TestResumeValidateError(t *testing.T) {
-	testcases := []struct{
+	testcases := []struct {
 		name string
-		s *Resume
+		s    *Resume
 	}{
 		{
 			name: "no project",
 			s: &Resume{
-				Zone: "no-project",
+				Zone:     "no-project",
 				Instance: "no-project",
 			},
 		},
 		{
 			name: "no zone",
 			s: &Resume{
-				Project: "no-zone",
+				Project:  "no-zone",
 				Instance: "no-zone",
 			},
 		},
 		{
 			name: "no instance",
 			s: &Resume{
-				Zone: "no-instance",
+				Zone:    "no-instance",
 				Project: "no-instance",
 			},
 		},
 	}
 	for _, tc := range testcases {
-		t.Run(tc.name, func(t *testing.T){
+		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			w := testWorkflow()
 			s, _ := w.NewStep("sp")

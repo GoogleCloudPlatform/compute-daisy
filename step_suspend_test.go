@@ -15,9 +15,9 @@
 package daisy
 
 import (
-	"net/http"
-	"fmt"
 	"context"
+	"fmt"
+	"net/http"
 	"testing"
 
 	daisyCompute "github.com/GoogleCloudPlatform/compute-daisy/compute"
@@ -42,7 +42,7 @@ func TestSuspendPopulate(t *testing.T) {
 	s, _ = w.NewStep("sp-nooverwrite")
 	s.Suspend = &Suspend{
 		Project: "no-overwrite",
-		Zone: "no-overwrite",
+		Zone:    "no-overwrite",
 	}
 	if err := w.populate(ctx); err != nil {
 		t.Errorf("got error populating suspend step: %v", err)
@@ -73,34 +73,34 @@ func TestSuspendValidate(t *testing.T) {
 }
 
 func TestSuspendValidateError(t *testing.T) {
-	testcases := []struct{
+	testcases := []struct {
 		name string
-		s *Suspend
+		s    *Suspend
 	}{
 		{
 			name: "no project",
 			s: &Suspend{
-				Zone: "no-project",
+				Zone:     "no-project",
 				Instance: "no-project",
 			},
 		},
 		{
 			name: "no zone",
 			s: &Suspend{
-				Project: "no-zone",
+				Project:  "no-zone",
 				Instance: "no-zone",
 			},
 		},
 		{
 			name: "no instance",
 			s: &Suspend{
-				Zone: "no-instance",
+				Zone:    "no-instance",
 				Project: "no-instance",
 			},
 		},
 	}
 	for _, tc := range testcases {
-		t.Run(tc.name, func(t *testing.T){
+		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			w := testWorkflow()
 			s, _ := w.NewStep("sp")
