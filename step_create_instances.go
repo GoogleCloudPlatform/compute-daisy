@@ -232,7 +232,13 @@ func (ci *CreateInstances) run(ctx context.Context, s *Step) DError {
 
 func (ci *CreateInstances) instanceUsesBetaFeatures() bool {
 	for _, instanceBeta := range ci.InstancesBeta {
-		if instanceBeta != nil && instanceBeta.SourceMachineImage != "" {
+		if instanceBeta == nil {
+			continue
+		}
+		if instanceBeta.SourceMachineImage != "" {
+			return true
+		}
+		if instanceBeta.Scheduling != nil && instanceBeta.Scheduling.MaxRunDuration != nil {
 			return true
 		}
 	}
