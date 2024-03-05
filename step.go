@@ -65,6 +65,8 @@ type Step struct {
 	DeprecateImages           *DeprecateImages           `json:",omitempty"`
 	IncludeWorkflow           *IncludeWorkflow           `json:",omitempty"`
 	SubWorkflow               *SubWorkflow               `json:",omitempty"`
+	Suspend                   *Suspend                   `json:",omitempty"`
+	Resume                    *Resume                    `json:",omitempty"`
 	WaitForInstancesSignal    *WaitForInstancesSignal    `json:",omitempty"`
 	WaitForAnyInstancesSignal *WaitForAnyInstancesSignal `json:",omitempty"`
 	WaitForAvailableQuotas    *WaitForAvailableQuotas    `json:",omitempty"`
@@ -189,6 +191,14 @@ func (s *Step) stepImpl() (stepImpl, DError) {
 	if s.testType != nil {
 		matchCount++
 		result = s.testType
+	}
+	if s.Resume != nil {
+		matchCount++
+		result = s.Resume
+	}
+	if s.Suspend != nil {
+		matchCount++
+		result = s.Suspend
 	}
 
 	if matchCount == 0 {

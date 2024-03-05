@@ -29,6 +29,8 @@
     * [StopInstances](#type-stopinstances)
     * [IncludeWorkflow](#type-includeworkflow)
     * [SubWorkflow](#type-subworkflow)
+    * [Suspend](#type-suspend)
+    * [Resume](#type-resume)
     * [WaitForInstancesSignal](#type-waitforinstancessignal)
     * [UpdateInstancesMetadata](#type-updateinstancesmetadata)
     * [WaitForAvailableQuotas](#type-waitforavailablequotas)
@@ -734,6 +736,54 @@ This SubWorkflow step example uses a local workflow file and passes a var,
     "Vars": {
         "foo": "bar"
     }
+  }
+}
+```
+
+#### Type: Suspend
+Suspend an compute instance.
+
+* Project (copied from workflow if unset)
+* Zone (copied from workflow if unset)
+* Instance
+
+SubWorkflow step type fields:
+
+| Field Name | Type | Description |
+| -----------|------|-------------|
+| Project | string | *Optional.* Project in which to suspend the instance. |
+| Zone | string | *Optional.* Zone in which to suspend the instance. |
+| Instance | string | The instance to suspend. |
+
+This step example suspends instance foo.
+```json
+"step-name": {
+  "Suspend": {
+    "Instance": "foo"
+  }
+}
+```
+
+#### Type: Resume
+Resume an compute instance.
+
+* Project (copied from workflow if unset)
+* Zone (copied from workflow if unset)
+* Instance
+
+SubWorkflow step type fields:
+
+| Field Name | Type | Description |
+| -----------|------|-------------|
+| Project | string | *Optional.* Project in which to resume the instance. |
+| Zone | string | *Optional.* Zone in which to resume the instance. |
+| Instance | string | The instance to resume. |
+
+This step example resumes instance foo.
+```json
+"step-name": {
+  "Resume": {
+    "Instance": "foo"
   }
 }
 ```

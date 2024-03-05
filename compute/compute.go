@@ -114,6 +114,8 @@ type Client interface {
 	DeleteMachineImage(project, name string) error
 	CreateMachineImage(project string, i *compute.MachineImage) error
 	GetMachineImage(project, name string) (*compute.MachineImage, error)
+	Suspend(project, zone, instance string) error
+	Resume(project, zone, instance string) error
 
 	Retry(f func(opts ...googleapi.CallOption) (*compute.Operation, error), opts ...googleapi.CallOption) (op *compute.Operation, err error)
 	RetryBeta(f func(opts ...googleapi.CallOption) (*computeBeta.Operation, error), opts ...googleapi.CallOption) (op *computeBeta.Operation, err error)
@@ -1345,6 +1347,34 @@ func (c *client) GetRegion(project, name string) (*compute.Region, error) {
 		return c.raw.Regions.Get(project, name).Do()
 	}
 	return n, err
+}
+
+// Suspend an instance
+func (c *client) Suspend(project, zone, name string) error {
+	var op *compute.Operation
+	var err error
+	op, err = c.raw.Instances.Suspend(project, zone, name).Do()
+	if shouldRetryWithWait(c.hc.Transport, err, 2) {
+		op, err = c.raw.Instances.Suspend(project, zone, name).Do()
+	}
+	if err != nil {
+		return err
+	}
+	return c.i.zoneOperationsWait(project, zone, op.Name)
+}
+
+// Resume an instance
+func (c *client) Resume(project, zone, name string) error {
+	var op *compute.Operation
+	var err error
+	op, err = c.raw.Instances.Resume(project, zone, name).Do()
+	if shouldRetryWithWait(c.hc.Transport, err, 2) {
+		op, err = c.raw.Instances.Resume(project, zone, name).Do()
+	}
+	if err != nil {
+		return err
+	}
+	return c.i.zoneOperationsWait(project, zone, op.Name)
 }
 
 // ListNetworks gets a list of GCE Networks.
