@@ -24,6 +24,7 @@ import (
 )
 
 func TestTestClient(t *testing.T) {
+	t.Fail()
 	var fakeCalled, realCalled bool
 	var wantFakeCalled, wantRealCalled bool
 	var url string
