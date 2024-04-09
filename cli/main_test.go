@@ -46,6 +46,7 @@ func TestPopulateVars(t *testing.T) {
 }
 
 func TestAddFlags(t *testing.T) {
+	t.Fail()
 	firstFlag := "var:first_var"
 	secondFlag := "var:second_var"
 	value := "value"
