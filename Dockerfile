@@ -18,7 +18,7 @@ WORKDIR /go/src/daisy
 
 # Pre cache mod dependencies; this speeds up local development builds when
 # changes are independent of the go module dependencies.
-COPY go.mod go.sum ./
+COPY . . ./
 RUN go mod download
 
 # Build daisy. CGO_ENABLED=0 forces static linking libc dependencies
