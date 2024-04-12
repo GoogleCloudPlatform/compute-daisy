@@ -27,6 +27,7 @@ import (
 )
 
 func TestFilter(t *testing.T) {
+	t.Fail()
 	ss := []string{"my", "name", "is", "daisy", "what", "is", "yours"}
 
 	tests := []struct {
