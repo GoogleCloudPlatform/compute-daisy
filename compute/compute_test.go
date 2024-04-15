@@ -52,6 +52,7 @@ var (
 )
 
 func TestShouldRetryWithWait(t *testing.T) {
+	t.Fail()
 	tests := []struct {
 		desc string
 		err  error
