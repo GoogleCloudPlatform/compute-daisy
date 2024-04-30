@@ -97,6 +97,8 @@ func TestTestClient(t *testing.T) {
 		{"get machine image", func() { c.GetMachineImage("a", "b") }, "/projects/a/global/machineImages/b?alt=json&prettyPrint=false"},
 		{"list machine images", func() { c.ListMachineImages("a", listOpts...) }, "/projects/a/global/machineImages?alt=json&filter=foo&orderBy=foo&pageToken=&prettyPrint=false"},
 		{"delete machine image", func() { c.DeleteMachineImage("a", "b") }, "/projects/a/global/machineImages/b?alt=json&prettyPrint=false"},
+		{"aggregated list forwarding rule", func() { c.AggregatedListForwardingRules("a", listOpts...) }, "/projects/a/aggregated/forwardingRules?alt=json&pageToken=&prettyPrint=false"},
+		{"delete network", func() { c.DeleteNetwork("a", "b") }, "/projects/a/global/networks/b?alt=json&prettyPrint=false"},
 	}
 
 	runTests := func() {
@@ -215,6 +217,10 @@ func TestTestClient(t *testing.T) {
 	c.CreateMachineImageFn = func(_ string, _ *compute.MachineImage) error { fakeCalled = true; return nil }
 	c.GetMachineImageFn = func(_, _ string) (*compute.MachineImage, error) { fakeCalled = true; return nil, nil }
 	c.ListMachineImagesFn = func(_ string, _ ...ListCallOption) ([]*compute.MachineImage, error) {
+		fakeCalled = true
+		return nil, nil
+	}
+	c.AggregatedListForwardingRulesFn = func(_ string, _ ...ListCallOption) ([]*compute.ForwardingRule, error) {
 		fakeCalled = true
 		return nil, nil
 	}

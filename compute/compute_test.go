@@ -31,24 +31,29 @@ import (
 )
 
 var (
-	testProject              = "test-project"
-	testZone                 = "test-zone"
-	testRegion               = "test-region"
-	testDisk                 = "test-disk"
-	testDisk2                = "test-disk2"
-	testResize         int64 = 128
-	testForwardingRule       = "test-forwarding-rule"
-	testFirewallRule         = "test-firewall-rule"
-	testImage                = "test-image"
-	testImageAlpha           = "test-image-alpha"
-	testImageBeta            = "test-image-beta"
-	testMachineImage         = "test-machine-image"
-	testInstance             = "test-instance"
-	testInstanceAlpha        = "test-instance-alpha"
-	testInstanceBeta         = "test-instance-beta"
-	testNetwork              = "test-network"
-	testSubnetwork           = "test-subnetwork"
-	testTargetInstance       = "test-target-instance"
+	testProject                    = "test-project"
+	testZone                       = "test-zone"
+	testRegion                     = "test-region"
+	testDisk                       = "test-disk"
+	testDisk2                      = "test-disk2"
+	testResize               int64 = 128
+	testForwardingRule             = "test-forwarding-rule"
+	testFirewallRule               = "test-firewall-rule"
+	testImage                      = "test-image"
+	testImageAlpha                 = "test-image-alpha"
+	testImageBeta                  = "test-image-beta"
+	testMachineImage               = "test-machine-image"
+	testInstance                   = "test-instance"
+	testInstanceAlpha              = "test-instance-alpha"
+	testInstanceBeta               = "test-instance-beta"
+	testNetwork                    = "test-network"
+	testSubnetwork                 = "test-subnetwork"
+	testTargetInstance             = "test-target-instance"
+	testTargetHTTPProxy            = "test-target-http-proxy"
+	testURLMap                     = "test-url-map"
+	testBackendService             = "test-backend-service"
+	testHealthCheck                = "test-health-check"
+	testNetworkEndpointGroup       = "test-network-endpoint-group"
 )
 
 func TestShouldRetryWithWait(t *testing.T) {
@@ -135,6 +140,11 @@ func TestCreates(t *testing.T) {
 	n := &compute.Network{Name: testNetwork}
 	sn := &compute.Subnetwork{Name: testSubnetwork}
 	ti := &compute.TargetInstance{Name: testTargetInstance}
+	hp := &compute.TargetHttpProxy{Name: testTargetHTTPProxy}
+	um := &compute.UrlMap{Name: testURLMap}
+	bs := &compute.BackendService{Name: testBackendService}
+	hc := &compute.HealthCheck{Name: testHealthCheck}
+	neg := &compute.NetworkEndpointGroup{Name: testNetworkEndpointGroup}
 	creates := []struct {
 		name              string
 		do                func() error
@@ -244,6 +254,46 @@ func TestCreates(t *testing.T) {
 			fmt.Sprintf("/%s/zones/%s/targetInstances?alt=json&prettyPrint=false", testProject, testZone),
 			&compute.TargetInstance{Name: testTargetInstance},
 			ti,
+		},
+		{
+			"regionTargetHttpProxies",
+			func() error { return c.CreateRegionTargetHTTPProxy(testProject, testRegion, hp) },
+			fmt.Sprintf("/%s/regions/%s/targetHttpProxies/%s?alt=json&prettyPrint=false", testProject, testRegion, testTargetHTTPProxy),
+			fmt.Sprintf("/%s/regions/%s/targetHttpProxies?alt=json&prettyPrint=false", testProject, testRegion),
+			&compute.TargetHttpProxy{Name: testTargetHTTPProxy},
+			hp,
+		},
+		{
+			"regionUrlMaps",
+			func() error { return c.CreateRegionURLMap(testProject, testZone, um) },
+			fmt.Sprintf("/%s/zones/%s/urlMaps/%s?alt=json&prettyPrint=false", testProject, testZone, testURLMap),
+			fmt.Sprintf("/%s/zones/%s/urlMaps?alt=json&prettyPrint=false", testProject, testZone),
+			&compute.UrlMap{Name: testURLMap},
+			um,
+		},
+		{
+			"regionBackendServices",
+			func() error { return c.CreateRegionBackendService(testProject, testZone, bs) },
+			fmt.Sprintf("/%s/zones/%s/backendServices/%s?alt=json&prettyPrint=false", testProject, testZone, testBackendService),
+			fmt.Sprintf("/%s/zones/%s/backendServices?alt=json&prettyPrint=false", testProject, testZone),
+			&compute.BackendService{Name: testBackendService},
+			bs,
+		},
+		{
+			"regionHealthChecks",
+			func() error { return c.CreateRegionHealthCheck(testProject, testZone, hc) },
+			fmt.Sprintf("/%s/zones/%s/healthChecks/%s?alt=json&prettyPrint=false", testProject, testZone, testHealthCheck),
+			fmt.Sprintf("/%s/zones/%s/healthChecks?alt=json&prettyPrint=false", testProject, testZone),
+			&compute.HealthCheck{Name: testHealthCheck},
+			hc,
+		},
+		{
+			"regionNetworkEndpointGroups",
+			func() error { return c.CreateRegionNetworkEndpointGroup(testProject, testRegion, neg) },
+			fmt.Sprintf("/%s/regions/%s/networkEndpointGroups/%s?alt=json&prettyPrint=false", testProject, testRegion, testNetworkEndpointGroup),
+			fmt.Sprintf("/%s/regions/%s/networkEndpointGroups?alt=json&prettyPrint=false", testProject, testRegion),
+			&compute.NetworkEndpointGroup{Name: testNetworkEndpointGroup},
+			neg,
 		},
 	}
 
@@ -391,6 +441,38 @@ func TestDeletes(t *testing.T) {
 			func() error { return c.DeleteTargetInstance(testProject, testZone, testTargetInstance) },
 			fmt.Sprintf("/projects/%s/zones/%s/targetInstances/%s?alt=json&prettyPrint=false", testProject, testZone, testTargetInstance),
 			fmt.Sprintf("/projects/%s/zones/%s/operations//wait?alt=json&prettyPrint=false", testProject, testZone),
+		},
+		{
+			"regionTargetHttpProxies",
+			func() error { return c.DeleteRegionTargetHTTPProxy(testProject, testRegion, testTargetHTTPProxy) },
+			fmt.Sprintf("/projects/%s/regions/%s/targetHttpProxies/%s?alt=json&prettyPrint=false", testProject, testRegion, testTargetHTTPProxy),
+			fmt.Sprintf("/projects/%s/regions/%s/operations//wait?alt=json&prettyPrint=false", testProject, testRegion),
+		},
+		{
+			"regionUrlMaps",
+			func() error { return c.DeleteRegionURLMap(testProject, testRegion, testURLMap) },
+			fmt.Sprintf("/projects/%s/regions/%s/urlMaps/%s?alt=json&prettyPrint=false", testProject, testRegion, testURLMap),
+			fmt.Sprintf("/projects/%s/regions/%s/operations//wait?alt=json&prettyPrint=false", testProject, testRegion),
+		},
+		{
+			"regionBackendServices",
+			func() error { return c.DeleteRegionBackendService(testProject, testRegion, testBackendService) },
+			fmt.Sprintf("/projects/%s/regions/%s/backendServices/%s?alt=json&prettyPrint=false", testProject, testRegion, testBackendService),
+			fmt.Sprintf("/projects/%s/regions/%s/operations//wait?alt=json&prettyPrint=false", testProject, testRegion),
+		},
+		{
+			"regionHealthChecks",
+			func() error { return c.DeleteRegionHealthCheck(testProject, testRegion, testHealthCheck) },
+			fmt.Sprintf("/projects/%s/regions/%s/healthChecks/%s?alt=json&prettyPrint=false", testProject, testRegion, testHealthCheck),
+			fmt.Sprintf("/projects/%s/regions/%s/operations//wait?alt=json&prettyPrint=false", testProject, testRegion),
+		},
+		{
+			"regionNetworkEndpointGroups",
+			func() error {
+				return c.DeleteRegionNetworkEndpointGroup(testProject, testRegion, testNetworkEndpointGroup)
+			},
+			fmt.Sprintf("/projects/%s/regions/%s/networkEndpointGroups/%s?alt=json&prettyPrint=false", testProject, testRegion, testNetworkEndpointGroup),
+			fmt.Sprintf("/projects/%s/regions/%s/operations//wait?alt=json&prettyPrint=false", testProject, testRegion),
 		},
 	}
 

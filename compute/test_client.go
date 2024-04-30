@@ -49,71 +49,92 @@ func NewTestClient(handleFunc http.HandlerFunc) (*httptest.Server, *TestClient, 
 type TestClient struct {
 	client
 
-	AttachDiskFn                func(project, zone, instance string, d *compute.AttachedDisk) error
-	DetachDiskFn                func(project, zone, instance, disk string) error
-	CreateDiskFn                func(project, zone string, d *compute.Disk) error
-	CreateForwardingRuleFn      func(project, region string, fr *compute.ForwardingRule) error
-	CreateFirewallRuleFn        func(project string, i *compute.Firewall) error
-	CreateImageFn               func(project string, i *compute.Image) error
-	CreateInstanceFn            func(project, zone string, i *compute.Instance) error
-	CreateNetworkFn             func(project string, n *compute.Network) error
-	CreateSnapshotFn            func(project, zone, disk string, s *compute.Snapshot) error
-	CreateSubnetworkFn          func(project, region string, n *compute.Subnetwork) error
-	CreateTargetInstanceFn      func(project, zone string, ti *compute.TargetInstance) error
-	StartInstanceFn             func(project, zone, name string) error
-	StopInstanceFn              func(project, zone, name string) error
-	DeleteDiskFn                func(project, zone, name string) error
-	DeleteForwardingRuleFn      func(project, region, name string) error
-	DeleteFirewallRuleFn        func(project, name string) error
-	DeleteImageFn               func(project, name string) error
-	DeleteInstanceFn            func(project, zone, name string) error
-	DeleteNetworkFn             func(project, name string) error
-	DeleteSubnetworkFn          func(project, region, name string) error
-	DeleteTargetInstanceFn      func(project, zone, name string) error
-	DeprecateImageFn            func(project, name string, deprecationstatus *compute.DeprecationStatus) error
-	GetMachineTypeFn            func(project, zone, machineType string) (*compute.MachineType, error)
-	ListMachineTypesFn          func(project, zone string, opts ...ListCallOption) ([]*compute.MachineType, error)
-	GetProjectFn                func(project string) (*compute.Project, error)
-	GetSerialPortOutputFn       func(project, zone, name string, port, start int64) (*compute.SerialPortOutput, error)
-	GetGuestAttributesFn        func(project, zone, name, queryPath, variableKey string) (*compute.GuestAttributes, error)
-	GetZoneFn                   func(project, zone string) (*compute.Zone, error)
-	ListZonesFn                 func(project string, opts ...ListCallOption) ([]*compute.Zone, error)
-	GetInstanceFn               func(project, zone, name string) (*compute.Instance, error)
-	AggregatedListInstancesFn   func(project string, opts ...ListCallOption) ([]*compute.Instance, error)
-	ListInstancesFn             func(project, zone string, opts ...ListCallOption) ([]*compute.Instance, error)
-	ListSnapshotsFn             func(project string, opts ...ListCallOption) ([]*compute.Snapshot, error)
-	GetSnapshotFn               func(project, name string) (*compute.Snapshot, error)
-	DeleteSnapshotFn            func(project, name string) error
-	GetDiskFn                   func(project, zone, name string) (*compute.Disk, error)
-	AggregatedListDisksFn       func(project string, opts ...ListCallOption) ([]*compute.Disk, error)
-	ListDisksFn                 func(project, zone string, opts ...ListCallOption) ([]*compute.Disk, error)
-	GetForwardingRuleFn         func(project, region, name string) (*compute.ForwardingRule, error)
-	ListForwardingRulesFn       func(project, region string, opts ...ListCallOption) ([]*compute.ForwardingRule, error)
-	GetFirewallRuleFn           func(project, name string) (*compute.Firewall, error)
-	ListFirewallRulesFn         func(project string, opts ...ListCallOption) ([]*compute.Firewall, error)
-	GetImageFn                  func(project, name string) (*compute.Image, error)
-	GetImageFromFamilyFn        func(project, family string) (*compute.Image, error)
-	ListImagesFn                func(project string, opts ...ListCallOption) ([]*compute.Image, error)
-	GetLicenseFn                func(project, name string) (*compute.License, error)
-	ListLicensesFn              func(project string, opts ...ListCallOption) ([]*compute.License, error)
-	GetNetworkFn                func(project, name string) (*compute.Network, error)
-	GetRegionFn                 func(project, name string) (*compute.Region, error)
-	AggregatedListSubnetworksFn func(project string, opts ...ListCallOption) ([]*compute.Subnetwork, error)
-	ListNetworksFn              func(project string, opts ...ListCallOption) ([]*compute.Network, error)
-	GetSubnetworkFn             func(project, region, name string) (*compute.Subnetwork, error)
-	ListSubnetworksFn           func(project, region string, opts ...ListCallOption) ([]*compute.Subnetwork, error)
-	GetTargetInstanceFn         func(project, zone, name string) (*compute.TargetInstance, error)
-	ListTargetInstancesFn       func(project, zone string, opts ...ListCallOption) ([]*compute.TargetInstance, error)
-	InstanceStatusFn            func(project, zone, name string) (string, error)
-	InstanceStoppedFn           func(project, zone, name string) (bool, error)
-	ResizeDiskFn                func(project, zone, disk string, drr *compute.DisksResizeRequest) error
-	SetInstanceMetadataFn       func(project, zone, name string, md *compute.Metadata) error
-	SetCommonInstanceMetadataFn func(project string, md *compute.Metadata) error
-	ListMachineImagesFn         func(project string, opts ...ListCallOption) ([]*compute.MachineImage, error)
-	DeleteMachineImageFn        func(project, name string) error
-	CreateMachineImageFn        func(project string, i *compute.MachineImage) error
-	GetMachineImageFn           func(project, name string) (*compute.MachineImage, error)
-	RetryFn                     func(f func(opts ...googleapi.CallOption) (*compute.Operation, error), opts ...googleapi.CallOption) (op *compute.Operation, err error)
+	AttachDiskFn                       func(project, zone, instance string, d *compute.AttachedDisk) error
+	DetachDiskFn                       func(project, zone, instance, disk string) error
+	CreateDiskFn                       func(project, zone string, d *compute.Disk) error
+	CreateForwardingRuleFn             func(project, region string, fr *compute.ForwardingRule) error
+	CreateFirewallRuleFn               func(project string, i *compute.Firewall) error
+	CreateImageFn                      func(project string, i *compute.Image) error
+	CreateInstanceFn                   func(project, zone string, i *compute.Instance) error
+	CreateNetworkFn                    func(project string, n *compute.Network) error
+	CreateSnapshotFn                   func(project, zone, disk string, s *compute.Snapshot) error
+	CreateSubnetworkFn                 func(project, region string, n *compute.Subnetwork) error
+	CreateTargetInstanceFn             func(project, zone string, ti *compute.TargetInstance) error
+	StartInstanceFn                    func(project, zone, name string) error
+	StopInstanceFn                     func(project, zone, name string) error
+	DeleteDiskFn                       func(project, zone, name string) error
+	DeleteForwardingRuleFn             func(project, region, name string) error
+	DeleteFirewallRuleFn               func(project, name string) error
+	DeleteImageFn                      func(project, name string) error
+	DeleteInstanceFn                   func(project, zone, name string) error
+	DeleteNetworkFn                    func(project, name string) error
+	DeleteSubnetworkFn                 func(project, region, name string) error
+	DeleteTargetInstanceFn             func(project, zone, name string) error
+	DeprecateImageFn                   func(project, name string, deprecationstatus *compute.DeprecationStatus) error
+	GetMachineTypeFn                   func(project, zone, machineType string) (*compute.MachineType, error)
+	ListMachineTypesFn                 func(project, zone string, opts ...ListCallOption) ([]*compute.MachineType, error)
+	GetProjectFn                       func(project string) (*compute.Project, error)
+	GetSerialPortOutputFn              func(project, zone, name string, port, start int64) (*compute.SerialPortOutput, error)
+	GetGuestAttributesFn               func(project, zone, name, queryPath, variableKey string) (*compute.GuestAttributes, error)
+	GetZoneFn                          func(project, zone string) (*compute.Zone, error)
+	ListZonesFn                        func(project string, opts ...ListCallOption) ([]*compute.Zone, error)
+	GetInstanceFn                      func(project, zone, name string) (*compute.Instance, error)
+	AggregatedListInstancesFn          func(project string, opts ...ListCallOption) ([]*compute.Instance, error)
+	ListInstancesFn                    func(project, zone string, opts ...ListCallOption) ([]*compute.Instance, error)
+	ListSnapshotsFn                    func(project string, opts ...ListCallOption) ([]*compute.Snapshot, error)
+	GetSnapshotFn                      func(project, name string) (*compute.Snapshot, error)
+	DeleteSnapshotFn                   func(project, name string) error
+	GetDiskFn                          func(project, zone, name string) (*compute.Disk, error)
+	AggregatedListDisksFn              func(project string, opts ...ListCallOption) ([]*compute.Disk, error)
+	ListDisksFn                        func(project, zone string, opts ...ListCallOption) ([]*compute.Disk, error)
+	GetForwardingRuleFn                func(project, region, name string) (*compute.ForwardingRule, error)
+	AggregatedListForwardingRulesFn    func(project string, opts ...ListCallOption) ([]*compute.ForwardingRule, error)
+	ListForwardingRulesFn              func(project, region string, opts ...ListCallOption) ([]*compute.ForwardingRule, error)
+	GetFirewallRuleFn                  func(project, name string) (*compute.Firewall, error)
+	ListFirewallRulesFn                func(project string, opts ...ListCallOption) ([]*compute.Firewall, error)
+	GetImageFn                         func(project, name string) (*compute.Image, error)
+	GetImageFromFamilyFn               func(project, family string) (*compute.Image, error)
+	ListImagesFn                       func(project string, opts ...ListCallOption) ([]*compute.Image, error)
+	GetLicenseFn                       func(project, name string) (*compute.License, error)
+	ListLicensesFn                     func(project string, opts ...ListCallOption) ([]*compute.License, error)
+	GetNetworkFn                       func(project, name string) (*compute.Network, error)
+	GetRegionFn                        func(project, name string) (*compute.Region, error)
+	AggregatedListSubnetworksFn        func(project string, opts ...ListCallOption) ([]*compute.Subnetwork, error)
+	ListNetworksFn                     func(project string, opts ...ListCallOption) ([]*compute.Network, error)
+	GetSubnetworkFn                    func(project, region, name string) (*compute.Subnetwork, error)
+	ListSubnetworksFn                  func(project, region string, opts ...ListCallOption) ([]*compute.Subnetwork, error)
+	GetTargetInstanceFn                func(project, zone, name string) (*compute.TargetInstance, error)
+	ListTargetInstancesFn              func(project, zone string, opts ...ListCallOption) ([]*compute.TargetInstance, error)
+	InstanceStatusFn                   func(project, zone, name string) (string, error)
+	InstanceStoppedFn                  func(project, zone, name string) (bool, error)
+	ResizeDiskFn                       func(project, zone, disk string, drr *compute.DisksResizeRequest) error
+	SetInstanceMetadataFn              func(project, zone, name string, md *compute.Metadata) error
+	SetCommonInstanceMetadataFn        func(project string, md *compute.Metadata) error
+	ListMachineImagesFn                func(project string, opts ...ListCallOption) ([]*compute.MachineImage, error)
+	DeleteMachineImageFn               func(project, name string) error
+	CreateMachineImageFn               func(project string, i *compute.MachineImage) error
+	GetMachineImageFn                  func(project, name string) (*compute.MachineImage, error)
+	RetryFn                            func(f func(opts ...googleapi.CallOption) (*compute.Operation, error), opts ...googleapi.CallOption) (op *compute.Operation, err error)
+	DeleteRegionTargetHTTPProxyFn      func(project, region, name string) error
+	CreateRegionTargetHTTPProxyFn      func(project, region string, p *compute.TargetHttpProxy) error
+	ListRegionTargetHTTPProxiesFn      func(project, region, name string, opts ...ListCallOption) ([]*compute.TargetHttpProxy, error)
+	GetRegionTargetHTTPProxyFn         func(project, region, name string) (*compute.TargetHttpProxy, error)
+	DeleteRegionURLMapFn               func(project, region, name string) error
+	CreateRegionURLMapFn               func(project, region string, u *compute.UrlMap) error
+	ListRegionURLMapsFn                func(project, region, name string, opts ...ListCallOption) ([]*compute.UrlMap, error)
+	GetRegionURLMapFn                  func(project, region, name string) (*compute.UrlMap, error)
+	DeleteRegionBackendServiceFn       func(project, region, name string) error
+	CreateRegionBackendServiceFn       func(project, region string, b *compute.BackendService) error
+	ListRegionBackendServicesFn        func(project, region, name string, opts ...ListCallOption) ([]*compute.BackendService, error)
+	GetRegionBackendServiceFn          func(project, region, name string) (*compute.BackendService, error)
+	DeleteRegionHealthCheckFn          func(project, region, name string) error
+	CreateRegionHealthCheckFn          func(project, region string, h *compute.HealthCheck) error
+	ListRegionHealthChecksFn           func(project, region, name string, opts ...ListCallOption) ([]*compute.HealthCheck, error)
+	GetRegionHealthCheckFn             func(project, region, name string) (*compute.HealthCheck, error)
+	DeleteRegionNetworkEndpointGroupFn func(project, region, name string) error
+	CreateRegionNetworkEndpointGroupFn func(project, region string, n *compute.NetworkEndpointGroup) error
+	ListRegionNetworkEndpointGroupsFn  func(project, region, name string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error)
+	GetRegionNetworkEndpointGroupFn    func(project, region, name string) (*compute.NetworkEndpointGroup, error)
 
 	// Alpha API calls
 	CreateInstanceAlphaFn func(project, zone string, i *computeAlpha.Instance) error
@@ -438,6 +459,14 @@ func (c *TestClient) ListForwardingRules(project, region string, opts ...ListCal
 	return c.client.ListForwardingRules(project, region, opts...)
 }
 
+// AggregatedListForwardingRules uses the override method ListForwardingRulesFn or the real implementation.
+func (c *TestClient) AggregatedListForwardingRules(project string, opts ...ListCallOption) ([]*compute.ForwardingRule, error) {
+	if c.AggregatedListForwardingRulesFn != nil {
+		return c.AggregatedListForwardingRulesFn(project, opts...)
+	}
+	return c.client.AggregatedListForwardingRules(project, opts...)
+}
+
 // GetFirewallRule uses the override method GetFirewallRuleFn or the real implementation.
 func (c *TestClient) GetFirewallRule(project, name string) (*compute.Firewall, error) {
 	if c.GetFirewallRuleFn != nil {
@@ -684,4 +713,164 @@ func (c *TestClient) CreateInstanceAlpha(project, zone string, i *computeAlpha.I
 		return c.CreateInstanceAlphaFn(project, zone, i)
 	}
 	return c.client.CreateInstanceAlpha(project, zone, i)
+}
+
+// DeleteRegionTargetHTTPProxy uses the override method DeleteRegionTargetHttpProxiesFn or the real implementation.
+func (c *TestClient) DeleteRegionTargetHTTPProxy(project, region, name string) error {
+	if c.DeleteRegionTargetHTTPProxyFn != nil {
+		return c.DeleteRegionTargetHTTPProxyFn(project, region, name)
+	}
+	return c.client.DeleteRegionTargetHTTPProxy(project, region, name)
+}
+
+// CreateRegionTargetHTTPProxy uses the override method CreateRegionTargetHTTPProxyFn or the real implementation.
+func (c *TestClient) CreateRegionTargetHTTPProxy(project, region string, p *compute.TargetHttpProxy) error {
+	if c.CreateRegionTargetHTTPProxyFn != nil {
+		return c.CreateRegionTargetHTTPProxyFn(project, region, p)
+	}
+	return c.client.CreateRegionTargetHTTPProxy(project, region, p)
+}
+
+// ListRegionTargetHTTPProxies uses the override method ListRegionTargetHttpProxiesFn or the real implementation.
+func (c *TestClient) ListRegionTargetHTTPProxies(project, region, name string, opts ...ListCallOption) ([]*compute.TargetHttpProxy, error) {
+	if c.ListRegionTargetHTTPProxiesFn != nil {
+		return c.ListRegionTargetHTTPProxiesFn(project, region, name, opts...)
+	}
+	return c.client.ListRegionTargetHTTPProxies(project, region, name, opts...)
+}
+
+// GetRegionTargetHTTPProxy uses the override method GetRegionTargetHTTPProxyFn or the real implementation.
+func (c *TestClient) GetRegionTargetHTTPProxy(project, region, name string) (*compute.TargetHttpProxy, error) {
+	if c.GetRegionTargetHTTPProxyFn != nil {
+		return c.GetRegionTargetHTTPProxyFn(project, region, name)
+	}
+	return c.client.GetRegionTargetHTTPProxy(project, region, name)
+}
+
+// DeleteRegionURLMap uses the override method DeleteRegionURLMapsFn or the real implementation.
+func (c *TestClient) DeleteRegionURLMap(project, region, name string) error {
+	if c.DeleteRegionURLMapFn != nil {
+		return c.DeleteRegionURLMapFn(project, region, name)
+	}
+	return c.client.DeleteRegionURLMap(project, region, name)
+}
+
+// CreateRegionURLMap uses the override method CreateRegionURLMapFn or the real implementation.
+func (c *TestClient) CreateRegionURLMap(project, region string, p *compute.UrlMap) error {
+	if c.CreateRegionURLMapFn != nil {
+		return c.CreateRegionURLMapFn(project, region, p)
+	}
+	return c.client.CreateRegionURLMap(project, region, p)
+}
+
+// ListRegionURLMaps uses the override method ListRegionURLMapsFn or the real implementation.
+func (c *TestClient) ListRegionURLMaps(project, region, name string, opts ...ListCallOption) ([]*compute.UrlMap, error) {
+	if c.ListRegionURLMapsFn != nil {
+		return c.ListRegionURLMapsFn(project, region, name, opts...)
+	}
+	return c.client.ListRegionURLMaps(project, region, name, opts...)
+}
+
+// GetRegionURLMap uses the override method GetRegionURLMapFn or the real implementation.
+func (c *TestClient) GetRegionURLMap(project, region, name string) (*compute.UrlMap, error) {
+	if c.GetRegionURLMapFn != nil {
+		return c.GetRegionURLMapFn(project, region, name)
+	}
+	return c.client.GetRegionURLMap(project, region, name)
+}
+
+// DeleteRegionBackendService uses the override method DeleteRegionBackendServicesFn or the real implementation.
+func (c *TestClient) DeleteRegionBackendService(project, region, name string) error {
+	if c.DeleteRegionBackendServiceFn != nil {
+		return c.DeleteRegionBackendServiceFn(project, region, name)
+	}
+	return c.client.DeleteRegionBackendService(project, region, name)
+}
+
+// CreateRegionBackendService uses the override method CreateRegionBackendServiceFn or the real implementation.
+func (c *TestClient) CreateRegionBackendService(project, region string, b *compute.BackendService) error {
+	if c.CreateRegionBackendServiceFn != nil {
+		return c.CreateRegionBackendServiceFn(project, region, b)
+	}
+	return c.client.CreateRegionBackendService(project, region, b)
+}
+
+// ListRegionBackendServices uses the override method ListRegionBackendServicesFn or the real implementation.
+func (c *TestClient) ListRegionBackendServices(project, region, name string, opts ...ListCallOption) ([]*compute.BackendService, error) {
+	if c.ListRegionBackendServicesFn != nil {
+		return c.ListRegionBackendServicesFn(project, region, name, opts...)
+	}
+	return c.client.ListRegionBackendServices(project, region, name, opts...)
+}
+
+// GetRegionBackendService uses the override method GetRegionBackendServiceFn or the real implementation.
+func (c *TestClient) GetRegionBackendService(project, region, name string) (*compute.BackendService, error) {
+	if c.GetRegionBackendServiceFn != nil {
+		return c.GetRegionBackendServiceFn(project, region, name)
+	}
+	return c.client.GetRegionBackendService(project, region, name)
+}
+
+// DeleteRegionHealthCheck uses the override method DeleteRegionHealthCheckFn or the real implementation.
+func (c *TestClient) DeleteRegionHealthCheck(project, region, name string) error {
+	if c.DeleteRegionHealthCheckFn != nil {
+		return c.DeleteRegionHealthCheckFn(project, region, name)
+	}
+	return c.client.DeleteRegionHealthCheck(project, region, name)
+}
+
+// CreateRegionHealthCheck uses the override method CreateRegionHealthCheckFn or the real implementation.
+func (c *TestClient) CreateRegionHealthCheck(project, region string, h *compute.HealthCheck) error {
+	if c.CreateRegionHealthCheckFn != nil {
+		return c.CreateRegionHealthCheckFn(project, region, h)
+	}
+	return c.client.CreateRegionHealthCheck(project, region, h)
+}
+
+// ListRegionHealthChecks uses the override method ListRegionHealthChecksFn or the real implementation.
+func (c *TestClient) ListRegionHealthChecks(project, region, name string, opts ...ListCallOption) ([]*compute.HealthCheck, error) {
+	if c.ListRegionHealthChecksFn != nil {
+		return c.ListRegionHealthChecksFn(project, region, name, opts...)
+	}
+	return c.client.ListRegionHealthChecks(project, region, name, opts...)
+}
+
+// GetRegionHealthCheck uses the override method GetRegionHealthCheckFn or the real implementation.
+func (c *TestClient) GetRegionHealthCheck(project, region, name string) (*compute.HealthCheck, error) {
+	if c.GetRegionHealthCheckFn != nil {
+		return c.GetRegionHealthCheckFn(project, region, name)
+	}
+	return c.client.GetRegionHealthCheck(project, region, name)
+}
+
+// DeleteRegionNetworkEndpointGroup uses the override method DeleteRegionNetworkEndpointGroupsFn or the real implementation.
+func (c *TestClient) DeleteRegionNetworkEndpointGroup(project, region, name string) error {
+	if c.DeleteRegionNetworkEndpointGroupFn != nil {
+		return c.DeleteRegionNetworkEndpointGroupFn(project, region, name)
+	}
+	return c.client.DeleteRegionNetworkEndpointGroup(project, region, name)
+}
+
+// CreateRegionNetworkEndpointGroup uses the override method CreateRegionNetworkEndpointGroupFn or the real implementation.
+func (c *TestClient) CreateRegionNetworkEndpointGroup(project, region string, p *compute.NetworkEndpointGroup) error {
+	if c.CreateRegionNetworkEndpointGroupFn != nil {
+		return c.CreateRegionNetworkEndpointGroupFn(project, region, p)
+	}
+	return c.client.CreateRegionNetworkEndpointGroup(project, region, p)
+}
+
+// ListRegionNetworkEndpointGroups uses the override method ListRegionNetworkEndpointGroupsFn or the real implementation.
+func (c *TestClient) ListRegionNetworkEndpointGroups(project, region, name string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error) {
+	if c.ListRegionNetworkEndpointGroupsFn != nil {
+		return c.ListRegionNetworkEndpointGroupsFn(project, region, name, opts...)
+	}
+	return c.client.ListRegionNetworkEndpointGroups(project, region, name, opts...)
+}
+
+// GetRegionNetworkEndpointGroup uses the override method GetRegionNetworkEndpointGroupFn or the real implementation.
+func (c *TestClient) GetRegionNetworkEndpointGroup(project, region, name string) (*compute.NetworkEndpointGroup, error) {
+	if c.GetRegionNetworkEndpointGroupFn != nil {
+		return c.GetRegionNetworkEndpointGroupFn(project, region, name)
+	}
+	return c.client.GetRegionNetworkEndpointGroup(project, region, name)
 }

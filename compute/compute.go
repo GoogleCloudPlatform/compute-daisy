@@ -95,6 +95,7 @@ type Client interface {
 	ListInstances(project, zone string, opts ...ListCallOption) ([]*compute.Instance, error)
 	AggregatedListDisks(project string, opts ...ListCallOption) ([]*compute.Disk, error)
 	ListDisks(project, zone string, opts ...ListCallOption) ([]*compute.Disk, error)
+	AggregatedListForwardingRules(project string, opts ...ListCallOption) ([]*compute.ForwardingRule, error)
 	ListForwardingRules(project, zone string, opts ...ListCallOption) ([]*compute.ForwardingRule, error)
 	ListFirewallRules(project string, opts ...ListCallOption) ([]*compute.Firewall, error)
 	ListImages(project string, opts ...ListCallOption) ([]*compute.Image, error)
@@ -116,6 +117,26 @@ type Client interface {
 	GetMachineImage(project, name string) (*compute.MachineImage, error)
 	Suspend(project, zone, instance string) error
 	Resume(project, zone, instance string) error
+	DeleteRegionTargetHTTPProxy(project, region, name string) error
+	CreateRegionTargetHTTPProxy(project, region string, p *compute.TargetHttpProxy) error
+	ListRegionTargetHTTPProxies(project, region, name string, opts ...ListCallOption) ([]*compute.TargetHttpProxy, error)
+	GetRegionTargetHTTPProxy(project, region, name string) (*compute.TargetHttpProxy, error)
+	DeleteRegionURLMap(project, region, name string) error
+	CreateRegionURLMap(project, region string, u *compute.UrlMap) error
+	ListRegionURLMaps(project, region, name string, opts ...ListCallOption) ([]*compute.UrlMap, error)
+	GetRegionURLMap(project, region, name string) (*compute.UrlMap, error)
+	DeleteRegionBackendService(project, region, name string) error
+	CreateRegionBackendService(project, region string, b *compute.BackendService) error
+	ListRegionBackendServices(project, region, name string, opts ...ListCallOption) ([]*compute.BackendService, error)
+	GetRegionBackendService(project, region, name string) (*compute.BackendService, error)
+	DeleteRegionHealthCheck(project, region, name string) error
+	CreateRegionHealthCheck(project, region string, h *compute.HealthCheck) error
+	ListRegionHealthChecks(project, region, name string, opts ...ListCallOption) ([]*compute.HealthCheck, error)
+	GetRegionHealthCheck(project, region, name string) (*compute.HealthCheck, error)
+	DeleteRegionNetworkEndpointGroup(project, region, name string) error
+	CreateRegionNetworkEndpointGroup(project, region string, n *compute.NetworkEndpointGroup) error
+	ListRegionNetworkEndpointGroups(project, region, name string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error)
+	GetRegionNetworkEndpointGroup(project, region, name string) (*compute.NetworkEndpointGroup, error)
 
 	Retry(f func(opts ...googleapi.CallOption) (*compute.Operation, error), opts ...googleapi.CallOption) (op *compute.Operation, err error)
 	RetryBeta(f func(opts ...googleapi.CallOption) (*computeBeta.Operation, error), opts ...googleapi.CallOption) (op *computeBeta.Operation, err error)
@@ -614,6 +635,301 @@ func (c *client) CreateImageAlpha(project string, i *computeAlpha.Image) error {
 	}
 	*i = *createdImage
 	return nil
+}
+
+// DeleteRegionTargetHTTPProxy deletes a GCE RegionTargetHTTPProxy.
+func (c *client) DeleteRegionTargetHTTPProxy(project, region, name string) error {
+	op, err := c.Retry(c.raw.RegionTargetHttpProxies.Delete(project, region, name).Do)
+	if err != nil {
+		return err
+	}
+	return c.i.regionOperationsWait(project, region, op.Name)
+}
+
+// CreateRegionTargetHTTPProxy creates a GCE RegionTargetHTTPProxy.
+func (c *client) CreateRegionTargetHTTPProxy(project, region string, p *compute.TargetHttpProxy) error {
+	op, err := c.Retry(c.raw.RegionTargetHttpProxies.Insert(project, region, p).Do)
+	if err != nil {
+		return err
+	}
+	if err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
+		return err
+	}
+	var createdRegionTargetHTTPProxy *compute.TargetHttpProxy
+	if createdRegionTargetHTTPProxy, err = c.i.GetRegionTargetHTTPProxy(project, region, p.Name); err != nil {
+		return err
+	}
+	*p = *createdRegionTargetHTTPProxy
+	return nil
+}
+
+// GetRegionTargetHTTPProxy gets a GCE RegionTargetHTTPProxy.
+func (c *client) GetRegionTargetHTTPProxy(project, region, name string) (*compute.TargetHttpProxy, error) {
+	i, err := c.raw.RegionTargetHttpProxies.Get(project, region, name).Do()
+	if shouldRetryWithWait(c.hc.Transport, err, 2) {
+		return c.raw.RegionTargetHttpProxies.Get(project, region, name).Do()
+	}
+	return i, err
+}
+
+// ListRegionTargetHTTPProxies lists GCE RegionTargetHTTPProxies.
+func (c *client) ListRegionTargetHTTPProxies(project, region, name string, opts ...ListCallOption) ([]*compute.TargetHttpProxy, error) {
+	var is []*compute.TargetHttpProxy
+	var pt string
+	call := c.raw.RegionTargetHttpProxies.List(project, region)
+	for _, opt := range opts {
+		call = opt.listCallOptionApply(call).(*compute.RegionTargetHttpProxiesListCall)
+	}
+	for il, err := call.PageToken(pt).Do(); ; il, err = call.PageToken(pt).Do() {
+		if shouldRetryWithWait(c.hc.Transport, err, 2) {
+			il, err = call.PageToken(pt).Do()
+		}
+		if err != nil {
+			return nil, err
+		}
+		is = append(is, il.Items...)
+
+		if il.NextPageToken == "" {
+			return is, nil
+		}
+		pt = il.NextPageToken
+	}
+}
+
+// DeleteRegionBackendService deletes a GCE RegionBackendService.
+func (c *client) DeleteRegionBackendService(project, region, name string) error {
+	op, err := c.Retry(c.raw.RegionBackendServices.Delete(project, region, name).Do)
+	if err != nil {
+		return err
+	}
+	return c.i.regionOperationsWait(project, region, op.Name)
+}
+
+// CreateRegionBackendService creates a GCE RegionBackendService.
+func (c *client) CreateRegionBackendService(project, region string, p *compute.BackendService) error {
+	op, err := c.Retry(c.raw.RegionBackendServices.Insert(project, region, p).Do)
+	if err != nil {
+		return err
+	}
+	if err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
+		return err
+	}
+	var createdRegionBackendService *compute.BackendService
+	if createdRegionBackendService, err = c.i.GetRegionBackendService(project, region, p.Name); err != nil {
+		return err
+	}
+	*p = *createdRegionBackendService
+	return nil
+}
+
+// GetRegionBackendService gets a GCE RegionBackendService.
+func (c *client) GetRegionBackendService(project, region, name string) (*compute.BackendService, error) {
+	i, err := c.raw.RegionBackendServices.Get(project, region, name).Do()
+	if shouldRetryWithWait(c.hc.Transport, err, 2) {
+		return c.raw.RegionBackendServices.Get(project, region, name).Do()
+	}
+	return i, err
+}
+
+// ListRegionBackendServices lists GCE RegionBackendServices.
+func (c *client) ListRegionBackendServices(project, region, name string, opts ...ListCallOption) ([]*compute.BackendService, error) {
+	var is []*compute.BackendService
+	var pt string
+	call := c.raw.RegionBackendServices.List(project, region)
+	for _, opt := range opts {
+		call = opt.listCallOptionApply(call).(*compute.RegionBackendServicesListCall)
+	}
+	for il, err := call.PageToken(pt).Do(); ; il, err = call.PageToken(pt).Do() {
+		if shouldRetryWithWait(c.hc.Transport, err, 2) {
+			il, err = call.PageToken(pt).Do()
+		}
+		if err != nil {
+			return nil, err
+		}
+		is = append(is, il.Items...)
+
+		if il.NextPageToken == "" {
+			return is, nil
+		}
+		pt = il.NextPageToken
+	}
+}
+
+// DeleteRegionURLMap deletes a GCE RegionURLMap.
+func (c *client) DeleteRegionURLMap(project, region, name string) error {
+	op, err := c.Retry(c.raw.RegionUrlMaps.Delete(project, region, name).Do)
+	if err != nil {
+		return err
+	}
+	return c.i.regionOperationsWait(project, region, op.Name)
+}
+
+// CreateRegionURLMap creates a GCE RegionURLMap.
+func (c *client) CreateRegionURLMap(project, region string, p *compute.UrlMap) error {
+	op, err := c.Retry(c.raw.RegionUrlMaps.Insert(project, region, p).Do)
+	if err != nil {
+		return err
+	}
+	if err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
+		return err
+	}
+	var createdRegionURLMap *compute.UrlMap
+	if createdRegionURLMap, err = c.i.GetRegionURLMap(project, region, p.Name); err != nil {
+		return err
+	}
+	*p = *createdRegionURLMap
+	return nil
+}
+
+// GetRegionURLMap gets a GCE RegionURLMap.
+func (c *client) GetRegionURLMap(project, region, name string) (*compute.UrlMap, error) {
+	i, err := c.raw.RegionUrlMaps.Get(project, region, name).Do()
+	if shouldRetryWithWait(c.hc.Transport, err, 2) {
+		return c.raw.RegionUrlMaps.Get(project, region, name).Do()
+	}
+	return i, err
+}
+
+// ListRegionURLMaps lists GCE RegionURLMaps.
+func (c *client) ListRegionURLMaps(project, region, name string, opts ...ListCallOption) ([]*compute.UrlMap, error) {
+	var is []*compute.UrlMap
+	var pt string
+	call := c.raw.RegionUrlMaps.List(project, region)
+	for _, opt := range opts {
+		call = opt.listCallOptionApply(call).(*compute.RegionUrlMapsListCall)
+	}
+	for il, err := call.PageToken(pt).Do(); ; il, err = call.PageToken(pt).Do() {
+		if shouldRetryWithWait(c.hc.Transport, err, 2) {
+			il, err = call.PageToken(pt).Do()
+		}
+		if err != nil {
+			return nil, err
+		}
+		is = append(is, il.Items...)
+
+		if il.NextPageToken == "" {
+			return is, nil
+		}
+		pt = il.NextPageToken
+	}
+}
+
+// DeleteRegionHealthCheck deletes a GCE RegionHealthCheck.
+func (c *client) DeleteRegionHealthCheck(project, region, name string) error {
+	op, err := c.Retry(c.raw.RegionHealthChecks.Delete(project, region, name).Do)
+	if err != nil {
+		return err
+	}
+	return c.i.regionOperationsWait(project, region, op.Name)
+}
+
+// CreateRegionHealthCheck creates a GCE RegionHealthCheck.
+func (c *client) CreateRegionHealthCheck(project, region string, p *compute.HealthCheck) error {
+	op, err := c.Retry(c.raw.RegionHealthChecks.Insert(project, region, p).Do)
+	if err != nil {
+		return err
+	}
+	if err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
+		return err
+	}
+	var createdRegionHealthCheck *compute.HealthCheck
+	if createdRegionHealthCheck, err = c.i.GetRegionHealthCheck(project, region, p.Name); err != nil {
+		return err
+	}
+	*p = *createdRegionHealthCheck
+	return nil
+}
+
+// GetRegionHealthCheck gets a GCE RegionHealthCheck.
+func (c *client) GetRegionHealthCheck(project, region, name string) (*compute.HealthCheck, error) {
+	i, err := c.raw.RegionHealthChecks.Get(project, region, name).Do()
+	if shouldRetryWithWait(c.hc.Transport, err, 2) {
+		return c.raw.RegionHealthChecks.Get(project, region, name).Do()
+	}
+	return i, err
+}
+
+// ListRegionHealthChecks lists GCE RegionHealthChecks.
+func (c *client) ListRegionHealthChecks(project, region, name string, opts ...ListCallOption) ([]*compute.HealthCheck, error) {
+	var is []*compute.HealthCheck
+	var pt string
+	call := c.raw.RegionHealthChecks.List(project, region)
+	for _, opt := range opts {
+		call = opt.listCallOptionApply(call).(*compute.RegionHealthChecksListCall)
+	}
+	for il, err := call.PageToken(pt).Do(); ; il, err = call.PageToken(pt).Do() {
+		if shouldRetryWithWait(c.hc.Transport, err, 2) {
+			il, err = call.PageToken(pt).Do()
+		}
+		if err != nil {
+			return nil, err
+		}
+		is = append(is, il.Items...)
+
+		if il.NextPageToken == "" {
+			return is, nil
+		}
+		pt = il.NextPageToken
+	}
+}
+
+// DeleteRegionNetworkEndpointGroup deletes a GCE RegionNetworkEndpointGroup.
+func (c *client) DeleteRegionNetworkEndpointGroup(project, region, name string) error {
+	op, err := c.Retry(c.raw.RegionNetworkEndpointGroups.Delete(project, region, name).Do)
+	if err != nil {
+		return err
+	}
+	return c.i.regionOperationsWait(project, region, op.Name)
+}
+
+// CreateRegionNetworkEndpointGroup creates a GCE RegionNetworkEndpointGroup.
+func (c *client) CreateRegionNetworkEndpointGroup(project, region string, p *compute.NetworkEndpointGroup) error {
+	op, err := c.Retry(c.raw.RegionNetworkEndpointGroups.Insert(project, region, p).Do)
+	if err != nil {
+		return err
+	}
+	if err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
+		return err
+	}
+	var createdRegionNetworkEndpointGroup *compute.NetworkEndpointGroup
+	if createdRegionNetworkEndpointGroup, err = c.i.GetRegionNetworkEndpointGroup(project, region, p.Name); err != nil {
+		return err
+	}
+	*p = *createdRegionNetworkEndpointGroup
+	return nil
+}
+
+// GetRegionNetworkEndpointGroup gets a GCE RegionNetworkEndpointGroup.
+func (c *client) GetRegionNetworkEndpointGroup(project, region, name string) (*compute.NetworkEndpointGroup, error) {
+	i, err := c.raw.RegionNetworkEndpointGroups.Get(project, region, name).Do()
+	if shouldRetryWithWait(c.hc.Transport, err, 2) {
+		return c.raw.RegionNetworkEndpointGroups.Get(project, region, name).Do()
+	}
+	return i, err
+}
+
+// ListRegionNetworkEndpointGroups lists GCE RegionNetworkEndpointGroups.
+func (c *client) ListRegionNetworkEndpointGroups(project, region, name string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error) {
+	var is []*compute.NetworkEndpointGroup
+	var pt string
+	call := c.raw.RegionNetworkEndpointGroups.List(project, region)
+	for _, opt := range opts {
+		call = opt.listCallOptionApply(call).(*compute.RegionNetworkEndpointGroupsListCall)
+	}
+	for il, err := call.PageToken(pt).Do(); ; il, err = call.PageToken(pt).Do() {
+		if shouldRetryWithWait(c.hc.Transport, err, 2) {
+			il, err = call.PageToken(pt).Do()
+		}
+		if err != nil {
+			return nil, err
+		}
+		is = append(is, il.Items...)
+
+		if il.NextPageToken == "" {
+			return is, nil
+		}
+		pt = il.NextPageToken
+	}
 }
 
 func (c *client) CreateInstance(project, zone string, i *compute.Instance) error {
@@ -1124,6 +1440,31 @@ func (c *client) GetForwardingRule(project, region, name string) (*compute.Forwa
 		return c.raw.ForwardingRules.Get(project, region, name).Do()
 	}
 	return n, err
+}
+
+// AggregatedListForwardingRules gets an aggregated list of GCE ForwardingRules.
+func (c *client) AggregatedListForwardingRules(project string, opts ...ListCallOption) ([]*compute.ForwardingRule, error) {
+	var frs []*compute.ForwardingRule
+	var pt string
+	call := c.raw.ForwardingRules.AggregatedList(project)
+	for _, opt := range opts {
+		call = opt.listCallOptionApply(call).(*compute.ForwardingRulesAggregatedListCall)
+	}
+	for ail, err := call.PageToken(pt).Do(); ; ail, err = call.PageToken(pt).Do() {
+		if shouldRetryWithWait(c.hc.Transport, err, 2) {
+			ail, err = call.PageToken(pt).Do()
+		}
+		if err != nil {
+			return nil, err
+		}
+		for _, frl := range ail.Items {
+			frs = append(frs, frl.ForwardingRules...)
+		}
+		if ail.NextPageToken == "" {
+			return frs, nil
+		}
+		pt = ail.NextPageToken
+	}
 }
 
 // ListForwardingRules gets a list of GCE ForwardingRules.
