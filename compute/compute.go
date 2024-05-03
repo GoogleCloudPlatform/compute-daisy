@@ -119,23 +119,23 @@ type Client interface {
 	Resume(project, zone, instance string) error
 	DeleteRegionTargetHTTPProxy(project, region, name string) error
 	CreateRegionTargetHTTPProxy(project, region string, p *compute.TargetHttpProxy) error
-	ListRegionTargetHTTPProxies(project, region, name string, opts ...ListCallOption) ([]*compute.TargetHttpProxy, error)
+	ListRegionTargetHTTPProxies(project, region string, opts ...ListCallOption) ([]*compute.TargetHttpProxy, error)
 	GetRegionTargetHTTPProxy(project, region, name string) (*compute.TargetHttpProxy, error)
 	DeleteRegionURLMap(project, region, name string) error
 	CreateRegionURLMap(project, region string, u *compute.UrlMap) error
-	ListRegionURLMaps(project, region, name string, opts ...ListCallOption) ([]*compute.UrlMap, error)
+	ListRegionURLMaps(project, region string, opts ...ListCallOption) ([]*compute.UrlMap, error)
 	GetRegionURLMap(project, region, name string) (*compute.UrlMap, error)
 	DeleteRegionBackendService(project, region, name string) error
 	CreateRegionBackendService(project, region string, b *compute.BackendService) error
-	ListRegionBackendServices(project, region, name string, opts ...ListCallOption) ([]*compute.BackendService, error)
+	ListRegionBackendServices(project, region string, opts ...ListCallOption) ([]*compute.BackendService, error)
 	GetRegionBackendService(project, region, name string) (*compute.BackendService, error)
 	DeleteRegionHealthCheck(project, region, name string) error
 	CreateRegionHealthCheck(project, region string, h *compute.HealthCheck) error
-	ListRegionHealthChecks(project, region, name string, opts ...ListCallOption) ([]*compute.HealthCheck, error)
+	ListRegionHealthChecks(project, region string, opts ...ListCallOption) ([]*compute.HealthCheck, error)
 	GetRegionHealthCheck(project, region, name string) (*compute.HealthCheck, error)
 	DeleteRegionNetworkEndpointGroup(project, region, name string) error
 	CreateRegionNetworkEndpointGroup(project, region string, n *compute.NetworkEndpointGroup) error
-	ListRegionNetworkEndpointGroups(project, region, name string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error)
+	ListRegionNetworkEndpointGroups(project, region string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error)
 	GetRegionNetworkEndpointGroup(project, region, name string) (*compute.NetworkEndpointGroup, error)
 
 	Retry(f func(opts ...googleapi.CallOption) (*compute.Operation, error), opts ...googleapi.CallOption) (op *compute.Operation, err error)
@@ -673,7 +673,7 @@ func (c *client) GetRegionTargetHTTPProxy(project, region, name string) (*comput
 }
 
 // ListRegionTargetHTTPProxies lists GCE RegionTargetHTTPProxies.
-func (c *client) ListRegionTargetHTTPProxies(project, region, name string, opts ...ListCallOption) ([]*compute.TargetHttpProxy, error) {
+func (c *client) ListRegionTargetHTTPProxies(project, region string, opts ...ListCallOption) ([]*compute.TargetHttpProxy, error) {
 	var is []*compute.TargetHttpProxy
 	var pt string
 	call := c.raw.RegionTargetHttpProxies.List(project, region)
@@ -732,7 +732,7 @@ func (c *client) GetRegionBackendService(project, region, name string) (*compute
 }
 
 // ListRegionBackendServices lists GCE RegionBackendServices.
-func (c *client) ListRegionBackendServices(project, region, name string, opts ...ListCallOption) ([]*compute.BackendService, error) {
+func (c *client) ListRegionBackendServices(project, region string, opts ...ListCallOption) ([]*compute.BackendService, error) {
 	var is []*compute.BackendService
 	var pt string
 	call := c.raw.RegionBackendServices.List(project, region)
@@ -791,7 +791,7 @@ func (c *client) GetRegionURLMap(project, region, name string) (*compute.UrlMap,
 }
 
 // ListRegionURLMaps lists GCE RegionURLMaps.
-func (c *client) ListRegionURLMaps(project, region, name string, opts ...ListCallOption) ([]*compute.UrlMap, error) {
+func (c *client) ListRegionURLMaps(project, region string, opts ...ListCallOption) ([]*compute.UrlMap, error) {
 	var is []*compute.UrlMap
 	var pt string
 	call := c.raw.RegionUrlMaps.List(project, region)
@@ -850,7 +850,7 @@ func (c *client) GetRegionHealthCheck(project, region, name string) (*compute.He
 }
 
 // ListRegionHealthChecks lists GCE RegionHealthChecks.
-func (c *client) ListRegionHealthChecks(project, region, name string, opts ...ListCallOption) ([]*compute.HealthCheck, error) {
+func (c *client) ListRegionHealthChecks(project, region string, opts ...ListCallOption) ([]*compute.HealthCheck, error) {
 	var is []*compute.HealthCheck
 	var pt string
 	call := c.raw.RegionHealthChecks.List(project, region)
@@ -909,7 +909,7 @@ func (c *client) GetRegionNetworkEndpointGroup(project, region, name string) (*c
 }
 
 // ListRegionNetworkEndpointGroups lists GCE RegionNetworkEndpointGroups.
-func (c *client) ListRegionNetworkEndpointGroups(project, region, name string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error) {
+func (c *client) ListRegionNetworkEndpointGroups(project, region string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error) {
 	var is []*compute.NetworkEndpointGroup
 	var pt string
 	call := c.raw.RegionNetworkEndpointGroups.List(project, region)

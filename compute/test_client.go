@@ -117,23 +117,23 @@ type TestClient struct {
 	RetryFn                            func(f func(opts ...googleapi.CallOption) (*compute.Operation, error), opts ...googleapi.CallOption) (op *compute.Operation, err error)
 	DeleteRegionTargetHTTPProxyFn      func(project, region, name string) error
 	CreateRegionTargetHTTPProxyFn      func(project, region string, p *compute.TargetHttpProxy) error
-	ListRegionTargetHTTPProxiesFn      func(project, region, name string, opts ...ListCallOption) ([]*compute.TargetHttpProxy, error)
+	ListRegionTargetHTTPProxiesFn      func(project, region string, opts ...ListCallOption) ([]*compute.TargetHttpProxy, error)
 	GetRegionTargetHTTPProxyFn         func(project, region, name string) (*compute.TargetHttpProxy, error)
 	DeleteRegionURLMapFn               func(project, region, name string) error
 	CreateRegionURLMapFn               func(project, region string, u *compute.UrlMap) error
-	ListRegionURLMapsFn                func(project, region, name string, opts ...ListCallOption) ([]*compute.UrlMap, error)
+	ListRegionURLMapsFn                func(project, region string, opts ...ListCallOption) ([]*compute.UrlMap, error)
 	GetRegionURLMapFn                  func(project, region, name string) (*compute.UrlMap, error)
 	DeleteRegionBackendServiceFn       func(project, region, name string) error
 	CreateRegionBackendServiceFn       func(project, region string, b *compute.BackendService) error
-	ListRegionBackendServicesFn        func(project, region, name string, opts ...ListCallOption) ([]*compute.BackendService, error)
+	ListRegionBackendServicesFn        func(project, region string, opts ...ListCallOption) ([]*compute.BackendService, error)
 	GetRegionBackendServiceFn          func(project, region, name string) (*compute.BackendService, error)
 	DeleteRegionHealthCheckFn          func(project, region, name string) error
 	CreateRegionHealthCheckFn          func(project, region string, h *compute.HealthCheck) error
-	ListRegionHealthChecksFn           func(project, region, name string, opts ...ListCallOption) ([]*compute.HealthCheck, error)
+	ListRegionHealthChecksFn           func(project, region string, opts ...ListCallOption) ([]*compute.HealthCheck, error)
 	GetRegionHealthCheckFn             func(project, region, name string) (*compute.HealthCheck, error)
 	DeleteRegionNetworkEndpointGroupFn func(project, region, name string) error
 	CreateRegionNetworkEndpointGroupFn func(project, region string, n *compute.NetworkEndpointGroup) error
-	ListRegionNetworkEndpointGroupsFn  func(project, region, name string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error)
+	ListRegionNetworkEndpointGroupsFn  func(project, region string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error)
 	GetRegionNetworkEndpointGroupFn    func(project, region, name string) (*compute.NetworkEndpointGroup, error)
 
 	// Alpha API calls
@@ -732,11 +732,11 @@ func (c *TestClient) CreateRegionTargetHTTPProxy(project, region string, p *comp
 }
 
 // ListRegionTargetHTTPProxies uses the override method ListRegionTargetHttpProxiesFn or the real implementation.
-func (c *TestClient) ListRegionTargetHTTPProxies(project, region, name string, opts ...ListCallOption) ([]*compute.TargetHttpProxy, error) {
+func (c *TestClient) ListRegionTargetHTTPProxies(project, region string, opts ...ListCallOption) ([]*compute.TargetHttpProxy, error) {
 	if c.ListRegionTargetHTTPProxiesFn != nil {
-		return c.ListRegionTargetHTTPProxiesFn(project, region, name, opts...)
+		return c.ListRegionTargetHTTPProxiesFn(project, region, opts...)
 	}
-	return c.client.ListRegionTargetHTTPProxies(project, region, name, opts...)
+	return c.client.ListRegionTargetHTTPProxies(project, region, opts...)
 }
 
 // GetRegionTargetHTTPProxy uses the override method GetRegionTargetHTTPProxyFn or the real implementation.
@@ -764,11 +764,11 @@ func (c *TestClient) CreateRegionURLMap(project, region string, p *compute.UrlMa
 }
 
 // ListRegionURLMaps uses the override method ListRegionURLMapsFn or the real implementation.
-func (c *TestClient) ListRegionURLMaps(project, region, name string, opts ...ListCallOption) ([]*compute.UrlMap, error) {
+func (c *TestClient) ListRegionURLMaps(project, region string, opts ...ListCallOption) ([]*compute.UrlMap, error) {
 	if c.ListRegionURLMapsFn != nil {
-		return c.ListRegionURLMapsFn(project, region, name, opts...)
+		return c.ListRegionURLMapsFn(project, region, opts...)
 	}
-	return c.client.ListRegionURLMaps(project, region, name, opts...)
+	return c.client.ListRegionURLMaps(project, region, opts...)
 }
 
 // GetRegionURLMap uses the override method GetRegionURLMapFn or the real implementation.
@@ -796,11 +796,11 @@ func (c *TestClient) CreateRegionBackendService(project, region string, b *compu
 }
 
 // ListRegionBackendServices uses the override method ListRegionBackendServicesFn or the real implementation.
-func (c *TestClient) ListRegionBackendServices(project, region, name string, opts ...ListCallOption) ([]*compute.BackendService, error) {
+func (c *TestClient) ListRegionBackendServices(project, region string, opts ...ListCallOption) ([]*compute.BackendService, error) {
 	if c.ListRegionBackendServicesFn != nil {
-		return c.ListRegionBackendServicesFn(project, region, name, opts...)
+		return c.ListRegionBackendServicesFn(project, region, opts...)
 	}
-	return c.client.ListRegionBackendServices(project, region, name, opts...)
+	return c.client.ListRegionBackendServices(project, region, opts...)
 }
 
 // GetRegionBackendService uses the override method GetRegionBackendServiceFn or the real implementation.
@@ -828,11 +828,11 @@ func (c *TestClient) CreateRegionHealthCheck(project, region string, h *compute.
 }
 
 // ListRegionHealthChecks uses the override method ListRegionHealthChecksFn or the real implementation.
-func (c *TestClient) ListRegionHealthChecks(project, region, name string, opts ...ListCallOption) ([]*compute.HealthCheck, error) {
+func (c *TestClient) ListRegionHealthChecks(project, region string, opts ...ListCallOption) ([]*compute.HealthCheck, error) {
 	if c.ListRegionHealthChecksFn != nil {
-		return c.ListRegionHealthChecksFn(project, region, name, opts...)
+		return c.ListRegionHealthChecksFn(project, region, opts...)
 	}
-	return c.client.ListRegionHealthChecks(project, region, name, opts...)
+	return c.client.ListRegionHealthChecks(project, region, opts...)
 }
 
 // GetRegionHealthCheck uses the override method GetRegionHealthCheckFn or the real implementation.
@@ -860,11 +860,11 @@ func (c *TestClient) CreateRegionNetworkEndpointGroup(project, region string, p 
 }
 
 // ListRegionNetworkEndpointGroups uses the override method ListRegionNetworkEndpointGroupsFn or the real implementation.
-func (c *TestClient) ListRegionNetworkEndpointGroups(project, region, name string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error) {
+func (c *TestClient) ListRegionNetworkEndpointGroups(project, region string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error) {
 	if c.ListRegionNetworkEndpointGroupsFn != nil {
-		return c.ListRegionNetworkEndpointGroupsFn(project, region, name, opts...)
+		return c.ListRegionNetworkEndpointGroupsFn(project, region, opts...)
 	}
-	return c.client.ListRegionNetworkEndpointGroups(project, region, name, opts...)
+	return c.client.ListRegionNetworkEndpointGroups(project, region, opts...)
 }
 
 // GetRegionNetworkEndpointGroup uses the override method GetRegionNetworkEndpointGroupFn or the real implementation.
