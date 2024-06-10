@@ -75,8 +75,8 @@ func (m *mockStep) validate(ctx context.Context, s *Step) DError {
 var (
 	testWf             = "test-wf"
 	testProject        = "test-project"
-	testZone           = "test-zone"
-	testRegion         = "test-zo"
+	testZone           = "test-region-zone"
+	testRegion         = "test-region"
 	testDisk           = "test-disk"
 	testForwardingRule = "test-forwarding-rule"
 	testFirewallRule   = "test-firewall-rule"

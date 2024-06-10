@@ -33,8 +33,8 @@ func TestCreateTargetInstancesRun(t *testing.T) {
 	wantTargetInstance := compute.TargetInstance{}
 	wantTargetInstance.Description = "TargetInstance created by Daisy in workflow \"test-wf\" on behalf of ."
 	wantTargetInstance.Name = "test-wf-abcdef"
-	wantTargetInstance.Instance = "projects/test-project/zones/test-zone/instances/"
-	wantTargetInstance.Zone = "test-zone"
+	wantTargetInstance.Instance = "projects/test-project/zones/test-region-zone/instances/"
+	wantTargetInstance.Zone = "test-region-zone"
 
 	tests := []struct {
 		desc      string

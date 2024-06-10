@@ -33,8 +33,8 @@ func TestCreateForwardingRulesRun(t *testing.T) {
 	wantForwardingRule := compute.ForwardingRule{}
 	wantForwardingRule.Description = "ForwardingRule created by Daisy in workflow \"test-wf\" on behalf of ."
 	wantForwardingRule.Name = "test-wf-abcdef"
-	wantForwardingRule.Target = "projects/test-project/zones/test-zone/targetInstances/"
-	wantForwardingRule.Region = "test-zo"
+	wantForwardingRule.Target = "projects/test-project/zones/test-region-zone/targetInstances/"
+	wantForwardingRule.Region = "test-region"
 
 	tests := []struct {
 		desc      string

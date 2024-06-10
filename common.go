@@ -141,7 +141,8 @@ func hasVariableDeclaration(s string) bool {
 
 func getRegionFromZone(z string) string {
 	if z != "" {
-		return z[:len(z)-2]
+		lastIndex := strings.LastIndex(z, "-")
+		return z[:lastIndex]
 	}
 	return ""
 }
