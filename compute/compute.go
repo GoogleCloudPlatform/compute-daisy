@@ -80,6 +80,7 @@ type Client interface {
 	GetImageAlpha(project, name string) (*computeAlpha.Image, error)
 	GetImageBeta(project, name string) (*computeBeta.Image, error)
 	GetImageFromFamily(project, family string) (*compute.Image, error)
+	GetImageFromFamilyBeta(project, family string) (*computeBeta.Image, error)
 	GetLicense(project, name string) (*compute.License, error)
 	GetNetwork(project, name string) (*compute.Network, error)
 	GetRegion(project, region string) (*compute.Region, error)
@@ -1556,6 +1557,15 @@ func (c *client) GetImageFromFamily(project, family string) (*compute.Image, err
 	i, err := c.raw.Images.GetFromFamily(project, family).Do()
 	if shouldRetryWithWait(c.hc.Transport, err, 2) {
 		return c.raw.Images.GetFromFamily(project, family).Do()
+	}
+	return i, err
+}
+
+// GetImageFromFamilyBeta gets a GCE Image from an image family using Beta API.
+func (c *client) GetImageFromFamilyBeta(project, family string) (*computeBeta.Image, error) {
+	i, err := c.rawBeta.Images.GetFromFamily(project, family).Do()
+	if shouldRetryWithWait(c.hc.Transport, err, 2) {
+		return c.rawBeta.Images.GetFromFamily(project, family).Do()
 	}
 	return i, err
 }
