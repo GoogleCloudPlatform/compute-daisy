@@ -49,6 +49,7 @@ type Client interface {
 	CreateInstanceBeta(project, zone string, i *computeBeta.Instance) error
 	CreateNetwork(project string, n *compute.Network) error
 	CreateSnapshot(project, zone, disk string, s *compute.Snapshot) error
+	CreateSnapshotWithGuestFlush(project, zone, disk string, s *compute.Snapshot) error
 	CreateSubnetwork(project, region string, n *compute.Subnetwork) error
 	CreateTargetInstance(project, zone string, ti *compute.TargetInstance) error
 	DeleteDisk(project, zone, name string) error
@@ -118,6 +119,7 @@ type Client interface {
 	GetMachineImage(project, name string) (*compute.MachineImage, error)
 	Suspend(project, zone, instance string) error
 	Resume(project, zone, instance string) error
+	SimulateMaintenanceEvent(project, zone, instance string) error
 	DeleteRegionTargetHTTPProxy(project, region, name string) error
 	CreateRegionTargetHTTPProxy(project, region string, p *compute.TargetHttpProxy) error
 	ListRegionTargetHTTPProxies(project, region string, opts ...ListCallOption) ([]*compute.TargetHttpProxy, error)
@@ -1639,6 +1641,25 @@ func (c *client) CreateSnapshot(project, zone, disk string, s *compute.Snapshot)
 	return nil
 }
 
+// CreateSnapshotWithGuestFlush creates a GCE snapshot informing the OS to prepare for the snapshot process.
+func (c *client) CreateSnapshotWithGuestFlush(project, zone, disk string, s *compute.Snapshot) error {
+	op, err := c.Retry(c.raw.Disks.CreateSnapshot(project, zone, disk, s).GuestFlush(true).Do)
+	if err != nil {
+		return err
+	}
+
+	if err := c.i.zoneOperationsWait(project, zone, op.Name); err != nil {
+		return err
+	}
+
+	var createdSnapshot *compute.Snapshot
+	if createdSnapshot, err = c.i.GetSnapshot(project, s.Name); err != nil {
+		return err
+	}
+	*s = *createdSnapshot
+	return nil
+}
+
 // GetSnapshot gets a GCE Snapshot.
 func (c *client) GetSnapshot(project, name string) (*compute.Snapshot, error) {
 	n, err := c.raw.Snapshots.Get(project, name).Do()
@@ -1721,6 +1742,20 @@ func (c *client) Resume(project, zone, name string) error {
 	op, err = c.raw.Instances.Resume(project, zone, name).Do()
 	if shouldRetryWithWait(c.hc.Transport, err, 2) {
 		op, err = c.raw.Instances.Resume(project, zone, name).Do()
+	}
+	if err != nil {
+		return err
+	}
+	return c.i.zoneOperationsWait(project, zone, op.Name)
+}
+
+// SimulateMaintenanceEvent simulates a maintenance event on an instance.
+func (c *client) SimulateMaintenanceEvent(project, zone, name string) error {
+	var op *compute.Operation
+	var err error
+	op, err = c.raw.Instances.SimulateMaintenanceEvent(project, zone, name).Do()
+	if shouldRetryWithWait(c.hc.Transport, err, 2) {
+		op, err = c.raw.Instances.SimulateMaintenanceEvent(project, zone, name).Do()
 	}
 	if err != nil {
 		return err
