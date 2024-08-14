@@ -140,6 +140,7 @@ type Client interface {
 	CreateRegionNetworkEndpointGroup(project, region string, n *compute.NetworkEndpointGroup) error
 	ListRegionNetworkEndpointGroups(project, region string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error)
 	GetRegionNetworkEndpointGroup(project, region, name string) (*compute.NetworkEndpointGroup, error)
+	SetMachineType(project, zone, name, machineType string) error
 
 	Retry(f func(opts ...googleapi.CallOption) (*compute.Operation, error), opts ...googleapi.CallOption) (op *compute.Operation, err error)
 	RetryBeta(f func(opts ...googleapi.CallOption) (*computeBeta.Operation, error), opts ...googleapi.CallOption) (op *computeBeta.Operation, err error)
@@ -148,7 +149,7 @@ type Client interface {
 
 // A ListCallOption is an option for a Google Compute API *ListCall.
 type ListCallOption interface {
-	listCallOptionApply(interface{}) interface{}
+	listCallOptionApply(any) any
 }
 
 // OrderBy sets the optional parameter "orderBy": Sorts list results by a
@@ -156,7 +157,7 @@ type ListCallOption interface {
 // based on the resource name.
 type OrderBy string
 
-func (o OrderBy) listCallOptionApply(i interface{}) interface{} {
+func (o OrderBy) listCallOptionApply(i any) any {
 	switch c := i.(type) {
 	case *compute.FirewallsListCall:
 		return c.OrderBy(string(o))
@@ -197,7 +198,7 @@ func (o OrderBy) listCallOptionApply(i interface{}) interface{} {
 // field_name comparison_string literal_string.
 type Filter string
 
-func (o Filter) listCallOptionApply(i interface{}) interface{} {
+func (o Filter) listCallOptionApply(i any) any {
 	switch c := i.(type) {
 	case *compute.FirewallsListCall:
 		return c.Filter(string(o))
@@ -2047,4 +2048,14 @@ func (c *client) GetMachineImage(project, name string) (*compute.MachineImage, e
 		return c.raw.MachineImages.Get(project, name).Do()
 	}
 	return i, err
+}
+
+// SetMachineType sets the machine type of a stopped GCE instance.
+func (c *client) SetMachineType(project, zone, name, machineType string) error {
+	req := &compute.InstancesSetMachineTypeRequest{MachineType: machineType}
+	op, err := c.Retry(c.raw.Instances.SetMachineType(project, zone, name, req).Do)
+	if err != nil {
+		return err
+	}
+	return c.i.zoneOperationsWait(project, zone, op.Name)
 }
