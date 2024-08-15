@@ -23,6 +23,7 @@
     * [CreateNetworks](#type-createnetworks)
     * [CreateSubnetworks](#type-createsubnetworks)
     * [CreateFirewallRules](#type-createfirewallrules)
+    * [ChangeMachineType](#type-changemachinetype)
     * [CopyGCSObjects](#type-copygcsobjects)
     * [DeleteResources](#type-deleteresources)
     * [StartInstances](#type-startinstances)
@@ -575,6 +576,28 @@ This CreateFirewallRules example creates a firewall for a daisy created network.
       ]
     },
   ]
+}
+```
+
+#### Type: ChangeMachineType
+Changes a VM's machine type to the specified machine type. A list of all the
+machine types can be found
+[here](https://cloud.google.com/compute/docs/general-purpose-machines). Note
+that the instance *must be stopped* before its machine type can be changed.
+
+| Field Name | Type | Description |
+| - | - | - |
+| Name | string | The instance whose machine type should be changed.
+| MachineType | string | The machine type to which to change the instance.
+
+The following example changes the machine type for instance `instance-1` to
+`c3-standard-4`.
+```json
+"step-name": {
+  "ChangeMachineType": {
+    "Name": "instance-1",
+    "MachineType": "c3-standard-4"
+  }
 }
 ```
 

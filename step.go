@@ -38,7 +38,7 @@ type Step struct {
 	name string
 	w    *Workflow
 
-	//Timeout description
+	// Timeout description
 	TimeoutDescription string `json:",omitempty"`
 	// Time to wait for this step to complete (default 10m).
 	// Must be parsable by https://golang.org/pkg/time/#ParseDuration.
@@ -57,6 +57,7 @@ type Step struct {
 	CreateSnapshots           *CreateSnapshots           `json:",omitempty"`
 	CreateSubnetworks         *CreateSubnetworks         `json:",omitempty"`
 	CreateTargetInstances     *CreateTargetInstances     `json:",omitempty"`
+	SetMachineType            *SetMachineType            `json:",omitempty"`
 	CopyGCSObjects            *CopyGCSObjects            `json:",omitempty"`
 	ResizeDisks               *ResizeDisks               `json:",omitempty"`
 	StartInstances            *StartInstances            `json:",omitempty"`
@@ -139,6 +140,10 @@ func (s *Step) stepImpl() (stepImpl, DError) {
 	if s.CreateTargetInstances != nil {
 		matchCount++
 		result = s.CreateTargetInstances
+	}
+	if s.SetMachineType != nil {
+		matchCount++
+		result = s.SetMachineType
 	}
 	if s.CopyGCSObjects != nil {
 		matchCount++
