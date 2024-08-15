@@ -135,6 +135,7 @@ type TestClient struct {
 	CreateRegionNetworkEndpointGroupFn func(project, region string, n *compute.NetworkEndpointGroup) error
 	ListRegionNetworkEndpointGroupsFn  func(project, region string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error)
 	GetRegionNetworkEndpointGroupFn    func(project, region, name string) (*compute.NetworkEndpointGroup, error)
+	SetMachineTypeFn                   func(project, zone, instance, machineType string) error
 
 	// Alpha API calls
 	CreateInstanceAlphaFn func(project, zone string, i *computeAlpha.Instance) error
@@ -873,4 +874,12 @@ func (c *TestClient) GetRegionNetworkEndpointGroup(project, region, name string)
 		return c.GetRegionNetworkEndpointGroupFn(project, region, name)
 	}
 	return c.client.GetRegionNetworkEndpointGroup(project, region, name)
+}
+
+// SetMachineType uses the override method SetMachineTypeFn or the real implementation.
+func (c *TestClient) SetMachineType(project, zone, name, machineType string) error {
+	if c.SetMachineTypeFn != nil {
+		return c.SetMachineTypeFn(project, zone, name, machineType)
+	}
+	return c.client.SetMachineType(project, zone, name, machineType)
 }

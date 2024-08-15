@@ -177,7 +177,7 @@ type Workflow struct {
 	stepTimeRecords             []TimeRecord
 	serialControlOutputValues   map[string]string
 	serialControlOutputValuesMx sync.Mutex
-	//Forces cleanup on error of all resources, including those marked with NoCleanup
+	// Forces cleanup on error of all resources, including those marked with NoCleanup
 	ForceCleanupOnError bool
 	// forceCleanup is set to true when resources should be forced clean, even when NoCleanup is set to true
 	forceCleanup bool
@@ -901,7 +901,7 @@ func stepsListen(names []string, chans map[string]chan DError) (string, DError) 
 func (w *Workflow) IterateWorkflowSteps(cb func(step *Step)) {
 	for _, step := range w.Steps {
 		if step.IncludeWorkflow != nil {
-			//recurse into included workflow
+			// Recurse into included workflow
 			step.IncludeWorkflow.Workflow.IterateWorkflowSteps(cb)
 		}
 		cb(step)

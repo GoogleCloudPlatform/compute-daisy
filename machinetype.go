@@ -24,7 +24,7 @@ import (
 var machineTypeURLRegex = regexp.MustCompile(fmt.Sprintf(`^(projects/(?P<project>%[1]s)/)?zones/(?P<zone>%[2]s)/machineTypes/(?P<machinetype>%[2]s)$`, projectRgxStr, rfc1035))
 
 func (w *Workflow) machineTypeExists(project, zone, machineType string) (bool, DError) {
-	predefinedMachineTypeExists, err := w.machineTypeCache.resourceExists(func(project, zone string, opts ...daisyCompute.ListCallOption) (interface{}, error) {
+	predefinedMachineTypeExists, err := w.machineTypeCache.resourceExists(func(project, zone string, opts ...daisyCompute.ListCallOption) (any, error) {
 		return w.ComputeClient.ListMachineTypes(project, zone)
 	}, project, zone, machineType)
 	if err != nil {
