@@ -34,6 +34,14 @@ go get github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/daisy
 ```
 This will place the Daisy binary in `$GOPATH/bin`.
 
+## Build the cli
+After cloning this repo, run
+```shell
+cd cli
+go build .
+```
+A cli executable file should appear, and you can move that into the folder where binaries are stored on your machine.
+
 # Usage
 The basic use case for Daisy looks like:
 ```shell
