@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	loggings "log"
 	"os"
 	"path"
 	"path/filepath"
@@ -269,18 +270,19 @@ type WorkflowModifier func(*Workflow)
 // Run runs a workflow.
 func (w *Workflow) Run(ctx context.Context) (err DError) {
 
+	loggings.Println("inside run =======")
 	w.externalLogging = true
 	if err = w.Validate(ctx); err != nil {
 		return err
 	}
-
+	loggings.Println("after validate =======")
 	defer w.cleanup()
 	defer func() {
 		if err != nil {
 			w.forceCleanup = w.ForceCleanupOnError
 		}
 	}()
-
+	loggings.Println("after cleanup =======")
 	if os.Getenv("BUILD_ID") != "" {
 		w.LogWorkflowInfo("Cloud Build ID: %s", os.Getenv("BUILD_ID"))
 	}
@@ -295,16 +297,19 @@ func (w *Workflow) Run(ctx context.Context) (err DError) {
 		w.CancelWorkflow()
 		return err
 	}
+	loggings.Println("after uploadSources =======")
 	w.LogWorkflowInfo("Running workflow")
 	defer func() {
 		for k, v := range w.serialControlOutputValues {
 			w.LogWorkflowInfo("Serial-output value -> %v:%v", k, v)
 		}
 	}()
+	loggings.Println("after defer func =======")
 	if err = w.run(ctx); err != nil {
 		w.LogWorkflowInfo("Error running workflow: %v", err)
 		return err
 	}
+	loggings.Println("after run =======")
 
 	return nil
 }
@@ -803,9 +808,11 @@ func New() *Workflow {
 // read during their populate step.
 func NewFromFile(file string) (w *Workflow, err error) {
 	w = New()
+	loggings.Println("NewFromFile %v", file)
 	if err := readWorkflow(file, w); err != nil {
 		return nil, err
 	}
+	loggings.Println("End of newFromFile")
 	return w, nil
 }
 
@@ -839,6 +846,8 @@ func JSONError(file string, data []byte, err error) error {
 
 func readWorkflow(file string, w *Workflow) (derr DError) {
 	data, err := ioutil.ReadFile(file)
+	loggings.Println("THIS IS THE FILE ")
+	loggings.Println("data %v", string(data))
 	if err != nil {
 		return newErr("failed to read workflow file", err)
 	}
@@ -847,14 +856,22 @@ func readWorkflow(file string, w *Workflow) (derr DError) {
 	if err != nil {
 		return newErr("failed to get absolute path of workflow file", err)
 	}
+	loggings.Println("--------------------------------------------------")
+	loggings.Println("workflowDir %v", w.workflowDir)
 
 	if err := json.Unmarshal(data, &w); err != nil {
 		return newErr("failed to unmarshal workflow file", JSONError(file, data, err))
 	}
+	loggings.Println("--------------------------------------------------")
+	// loggings.Println("Unmarshalled Workflow: %+v\n", w)
 
 	if w.OAuthPath != "" && !filepath.IsAbs(w.OAuthPath) {
 		w.OAuthPath = filepath.Join(w.workflowDir, w.OAuthPath)
 	}
+
+	loggings.Println("--------------------------------------------------")
+	loggings.Println("w.vars %v", w.Vars)
+	loggings.Println("--------------------------------------------------")
 
 	for name, step := range w.Steps {
 		step.name = name
