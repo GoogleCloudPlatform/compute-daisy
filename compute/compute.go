@@ -18,6 +18,7 @@ package compute
 import (
 	"context"
 	"fmt"
+	logging "log"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -1972,16 +1973,25 @@ func (c *client) SetCommonInstanceMetadata(project string, md *compute.Metadata)
 // GetGuestAttributes gets a Guest Attributes.
 func (c *client) GetGuestAttributes(project, zone, name, queryPath, variableKey string) (*compute.GuestAttributes, error) {
 	call := c.raw.Instances.GetGuestAttributes(project, zone, name)
+	logging.Printf("call %v", call)
+	logging.Printf("queryPath %v", queryPath)
 	if queryPath != "" {
 		call = call.QueryPath(queryPath)
 	}
+	logging.Printf("call 2 %v", call)
+	logging.Printf("variableKey %v", variableKey)
 	if variableKey != "" {
 		call = call.VariableKey(variableKey)
 	}
+	logging.Printf("call 3 %v", call)
 	a, err := call.Do()
+	logging.Printf("a %v", a)
+	logging.Printf("err %v", err)
 	if shouldRetryWithWait(c.hc.Transport, err, 2) {
 		return call.Do()
 	}
+	logging.Printf("a 2 %v", a)
+	logging.Printf("err 2 %v", err)
 	return a, err
 }
 
