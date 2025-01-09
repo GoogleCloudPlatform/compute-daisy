@@ -34,7 +34,7 @@ run_daisy() {
        "CreateDisks": [
          {
            "name": "disk-from-image-family-url",
-           "sourceImage": "projects/debian-cloud/global/images/family/debian-10",
+           "sourceImage": "projects/debian-cloud/global/images/family/debian-12",
            "type": "pd-ssd"
          }
        ]

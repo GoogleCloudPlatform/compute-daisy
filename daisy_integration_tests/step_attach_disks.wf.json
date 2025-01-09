@@ -41,7 +41,7 @@
             {
               "initializeParams": {
                 "diskType": "pd-ssd",
-                "sourceImage": "projects/debian-cloud/global/images/family/debian-10"
+                "sourceImage": "projects/debian-cloud/global/images/family/debian-12"
               }
             }
           ],
