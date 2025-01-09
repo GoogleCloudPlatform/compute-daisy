@@ -72,10 +72,13 @@ func (w *Workflow) imageExists(project, family, image string) (bool, DError) {
 	}
 	w.imageCache.mu.Lock()
 	defer w.imageCache.mu.Unlock()
-	err := w.imageCache.loadCache(func(project string, opts ...daisyCompute.ListCallOption) (interface{}, error) {
-		return w.ComputeClient.ListImages(project)
-	}, project, image)
-	if err != nil {
+	var err error
+	if !w.disableCachingImages {
+		err = w.imageCache.loadCache(func(project string, opts ...daisyCompute.ListCallOption) (interface{}, error) {
+			return w.ComputeClient.ListImages(project)
+		}, project, image)
+	}
+	if w.disableCachingImages || err != nil {
 		ic, err := w.ComputeClient.GetImage(project, image)
 		if err != nil {
 			return false, typedErr(apiError, "error getting resource for project", err)

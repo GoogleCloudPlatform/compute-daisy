@@ -81,7 +81,7 @@ func TestParseWorkflows(t *testing.T) {
 	oauth := "oauthpath"
 	dTimeout := "10m"
 	endpoint := "endpoint"
-	w, err := parseWorkflow(context.Background(), path, varMap, project, zone, gcsPath, oauth, dTimeout, endpoint, true, true, true)
+	w, err := parseWorkflow(context.Background(), path, varMap, project, zone, gcsPath, oauth, dTimeout, endpoint, true, true, true, false)
 	if err != nil {
 		t.Fatal(err)
 	}

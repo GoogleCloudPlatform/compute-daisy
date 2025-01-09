@@ -47,6 +47,9 @@ var (
 	gcsLogsDisabled    = flag.Bool("disable_gcs_logging", false, "do not stream logs to GCS")
 	cloudLogsDisabled  = flag.Bool("disable_cloud_logging", false, "do not stream logs to Cloud Logging")
 	stdoutLogsDisabled = flag.Bool("disable_stdout_logging", false, "do not display individual workflow logs on stdout")
+	// Projects with numerous images can improve performance by getting images directly rather than
+	// listing and caching them, since listing becomes slower than direct retrieval in such cases.
+	skipCachingImages = flag.Bool("skip_caching_images", false, "do not cache images from workflow project on startup")
 )
 
 const (
@@ -75,7 +78,7 @@ func populateVars(input string) map[string]string {
 	return varMap
 }
 
-func parseWorkflow(ctx context.Context, path string, varMap map[string]string, project, zone, gcsPath, oauth, dTimeout, cEndpoint string, disableGCSLogs, diableCloudLogs, disableStdoutLogs bool) (*daisy.Workflow, error) {
+func parseWorkflow(ctx context.Context, path string, varMap map[string]string, project, zone, gcsPath, oauth, dTimeout, cEndpoint string, disableGCSLogs, diableCloudLogs, disableStdoutLogs, skipCachingImages bool) (*daisy.Workflow, error) {
 	w, err := daisy.NewFromFile(path)
 	if err != nil {
 		return nil, err
@@ -129,6 +132,10 @@ Loop:
 	}
 	if disableStdoutLogs {
 		w.DisableStdoutLogging()
+	}
+
+	if skipCachingImages {
+		w.SkipCachingImages()
 	}
 
 	return w, nil
@@ -245,7 +252,7 @@ func main() {
 	varMap := populateVars(*variables)
 
 	for _, path := range flag.Args() {
-		w, err := parseWorkflow(ctx, path, varMap, *project, *zone, *gcsPath, *oauth, *defaultTimeout, *ce, *gcsLogsDisabled, *cloudLogsDisabled, *stdoutLogsDisabled)
+		w, err := parseWorkflow(ctx, path, varMap, *project, *zone, *gcsPath, *oauth, *defaultTimeout, *ce, *gcsLogsDisabled, *cloudLogsDisabled, *stdoutLogsDisabled, *skipCachingImages)
 		if err != nil {
 			log.Fatalf("error parsing workflow %q: %v", path, err)
 		}

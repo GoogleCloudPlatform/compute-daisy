@@ -130,6 +130,7 @@ type Workflow struct {
 	gcsLoggingDisabled    bool
 	cloudLoggingDisabled  bool
 	stdoutLoggingDisabled bool
+	disableCachingImages  bool
 	id                    string
 	Logger                Logger `json:"-"`
 	cleanupHooks          []func() DError
@@ -198,6 +199,11 @@ func (w *Workflow) DisableGCSLogging() {
 // DisableStdoutLogging disables logging to stdout for this workflow.
 func (w *Workflow) DisableStdoutLogging() {
 	w.stdoutLoggingDisabled = true
+}
+
+// SkipCachingImages skips caching images for this workflow.
+func (w *Workflow) SkipCachingImages() {
+	w.disableCachingImages = true
 }
 
 // AddVar adds a variable set to the Workflow.
