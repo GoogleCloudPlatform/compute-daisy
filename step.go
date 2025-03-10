@@ -17,6 +17,7 @@ package daisy
 import (
 	"context"
 	"fmt"
+	logging "log"
 	"reflect"
 	"strings"
 	"time"
@@ -303,6 +304,7 @@ func (s *Step) recordStepTime(startTime time.Time) {
 }
 
 func (s *Step) run(ctx context.Context) DError {
+	logging.Println("in run @@@@@@@@@@@")
 	startTime := time.Now()
 	defer s.recordStepTime(startTime)
 	impl, err := s.stepImpl()
@@ -316,7 +318,9 @@ func (s *Step) run(ctx context.Context) DError {
 		st = t.Name()
 	}
 	s.w.LogWorkflowInfo("Running step %q (%s)", s.name, st)
+	logging.Println("in run 2 @@@@@@@@@@@")
 	if err = impl.run(ctx, s); err != nil {
+		logging.Println("in run 3 @@@@@@@@@@@")
 		return s.wrapRunError(err)
 	}
 	select {

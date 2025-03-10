@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	logging "log"
 	"regexp"
 	"strings"
 	"sync"
@@ -235,15 +236,19 @@ func waitForSerialOutput(s *Step, project, zone, name string, so *SerialOutput, 
 }
 
 func waitForGuestAttribute(s *Step, project, zone, name string, ga *GuestAttribute, interval time.Duration) DError {
+	logging.Println("in waitForGuestAttribute ========")
 	var keyTokens []string
 	if ga.Namespace != "" {
 		keyTokens = append(keyTokens, ga.Namespace)
 	}
+	logging.Printf("ga.Namespace ====== %v", ga.Namespace)
+	logging.Printf("ga.KeyName ====== %v", ga.KeyName)
 	keyTokens = append(keyTokens, ga.KeyName)
 	varkey := strings.Join(keyTokens, "/")
 
 	w := s.w
 	msg := fmt.Sprintf("Instance %q: watching for key %s", name, varkey)
+	logging.Printf("sucess value %q", ga.SuccessValue)
 	if ga.SuccessValue != "" {
 		msg += fmt.Sprintf(", SuccessValue: %q", ga.SuccessValue)
 	}
@@ -261,7 +266,10 @@ func waitForGuestAttribute(s *Step, project, zone, name string, ga *GuestAttribu
 			return nil
 		case <-tick:
 			resp, err := w.ComputeClient.GetGuestAttributes(project, zone, name, "", varkey)
+			logging.Printf("resp %v", resp)
+			// logging.Printf("resp VariableValue %q", resp.VariableValue)
 			if err != nil {
+				logging.Printf("error in compute client")
 				if apiErr, ok := err.(*googleapi.Error); ok && apiErr.Code == 404 {
 					// 404 is OK, that means the key isn't present yet. Retry until timeout.
 					continue
@@ -289,7 +297,9 @@ func waitForGuestAttribute(s *Step, project, zone, name string, ga *GuestAttribu
 			}
 
 			if ga.SuccessValue != "" {
+				logging.Printf("resp VariableValue %q", resp.VariableValue)
 				if resp.VariableValue != ga.SuccessValue {
+					logging.Printf("resp VariableValue %q", resp.VariableValue)
 					errMsg := strings.TrimSpace(resp.VariableValue)
 					format := "WaitForInstancesSignal bad guest attribute value found for %q: %q"
 					return Errf(format, name, errMsg)
@@ -336,13 +346,33 @@ func populateForWaitForInstancesSignal(w *[]*InstanceSignal, sn string) DError {
 	return nil
 }
 
+func printInstanceSignals(is *[]*InstanceSignal) {
+	if is == nil || *is == nil {
+		logging.Println("InstanceSignal slice is nil or empty")
+		return
+	}
+
+	for i, instance := range *is {
+		if instance != nil {
+			logging.Printf("Instance %d: %+v\n", i, *instance)
+		} else {
+			logging.Printf("Instance %d is nil\n", i)
+		}
+	}
+}
+
 func (w *WaitForInstancesSignal) run(ctx context.Context, s *Step) DError {
+	logging.Println("in run error $$$$$$$$$")
 	is := (*[]*InstanceSignal)(w)
+	printInstanceSignals(is)
 	return runForWaitForInstancesSignal(is, s, true)
 }
 
 func (w *WaitForAnyInstancesSignal) run(ctx context.Context, s *Step) DError {
+	logging.Println("in run error 2 $$$$$$$$$")
 	is := (*[]*InstanceSignal)(w)
+	printInstanceSignals(is)
+
 	return runForWaitForInstancesSignal(is, s, false)
 }
 
@@ -350,6 +380,7 @@ func runForWaitForInstancesSignal(w *[]*InstanceSignal, s *Step, waitAll bool) D
 	var wg sync.WaitGroup
 	e := make(chan DError)
 	for _, is := range *w {
+		logging.Printf("is %v", is)
 		wg.Add(1)
 		go func(is *InstanceSignal) {
 			defer wg.Done()
@@ -386,12 +417,16 @@ func runForWaitForInstancesSignal(w *[]*InstanceSignal, s *Step, waitAll bool) D
 					close(serialSig)
 				}()
 			}
+			// logging.Println("in run 4 @@@@@@@@@@@")
 			if is.GuestAttribute != nil {
 				go func() {
+					logging.Println("in run 4.5 @@@@@@@@@@@")
 					if err := waitForGuestAttribute(s, m["project"], m["zone"], m["instance"], is.GuestAttribute, is.interval); err != nil || !waitAll {
 						// send a signal to end other waiting instances
+						logging.Println("in run 5 @@@@@@@@@@@")
 						e <- err
 					}
+					logging.Println("in run 5.5 @@@@@@@@@@@")
 					close(guestSig)
 				}()
 			}
