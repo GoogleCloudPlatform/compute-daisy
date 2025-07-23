@@ -56,35 +56,56 @@ func TestSubnetworkPopulate(t *testing.T) {
 
 func TestSubnetworkValidate(t *testing.T) {
 	ctx := context.Background()
-	w := testWorkflow()
-	s, _ := w.NewStep("s")
-
-	def := &Subnetwork{Resource: Resource{
-		Project:  w.Project,
-		RealName: "goodname",
-		link:     fmt.Sprintf("projects/%s/regions/%s/subnetworks/goodname", w.Project, getRegionFromZone(w.Zone)),
-	}}
 	tests := []struct {
-		desc      string
+		name      string
 		sn        *Subnetwork
 		shouldErr bool
 	}{
-		{"good case", &Subnetwork{Subnetwork: compute.Subnetwork{Name: "foo", Network: "bar", IpCidrRange: "192.168.1.0/32"}}, false},
-		{"bad case", &Subnetwork{Subnetwork: compute.Subnetwork{Name: "foo", Network: "bar", IpCidrRange: "192.168.1.0/33"}}, true},
+		{
+			name:      "ipv4-success",
+			sn:        &Subnetwork{Subnetwork: compute.Subnetwork{Name: "foo", Network: "bar", IpCidrRange: "192.168.1.0/32"}},
+			shouldErr: false,
+		},
+		{
+			name:      "ipv4-failure",
+			sn:        &Subnetwork{Subnetwork: compute.Subnetwork{Name: "foo", Network: "bar", IpCidrRange: "192.168.1.0/33"}},
+			shouldErr: true,
+		},
+		{
+			name:      "ipv6-success",
+			sn:        &Subnetwork{Subnetwork: compute.Subnetwork{Name: "foo", Network: "bar", StackType: "IPV6_ONLY", Ipv6AccessType: "EXTERNAL"}},
+			shouldErr: false,
+		},
+		{
+			name:      "ipv6-failure",
+			sn:        &Subnetwork{Subnetwork: compute.Subnetwork{Name: "foo", Network: "bar", StackType: "IPV6_ONLY"}},
+			shouldErr: true,
+		},
 	}
 
 	for _, tt := range tests {
-		// Test sanitation -- clean/set irrelevant fields.
-		tt.sn.RealName = def.RealName
-		tt.sn.Project = def.Project
-		tt.sn.link = def.link
+		t.Run(tt.name, func(t *testing.T) {
+			w := testWorkflow()
+			s, _ := w.NewStep("s")
+			def := &Subnetwork{Resource: Resource{
+				Project:  w.Project,
+				RealName: "goodname",
+				link:     fmt.Sprintf("projects/%s/regions/%s/subnetworks/goodname", w.Project, getRegionFromZone(w.Zone)),
+			}}
 
-		err := tt.sn.validate(ctx, s)
-		if tt.shouldErr && err == nil {
-			t.Errorf("%s: should have returned an error but didn't", tt.desc)
-		} else if !tt.shouldErr && err != nil {
-			t.Errorf("%s: unexpected error: %v", tt.desc, err)
-		}
+			// Test sanitation -- clean/set irrelevant fields.
+			tt.sn.RealName = def.RealName
+			tt.sn.Project = def.Project
+			tt.sn.link = def.link
+
+			// Run the test.
+			err := tt.sn.validate(ctx, s)
+			if tt.shouldErr && err == nil {
+				t.Errorf("validate(ctx, s) should have returned an error but didn't", s)
+			} else if !tt.shouldErr && err != nil {
+				t.Errorf("validate(ctx, s) returned unexpected error: %v", err)
+			}
+		})
 	}
 }
 
