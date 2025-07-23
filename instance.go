@@ -527,7 +527,7 @@ func (i *Instance) populateNetworks() DError {
 		i.NetworkInterfaces = []*compute.NetworkInterface{{}}
 	}
 	for _, n := range i.NetworkInterfaces {
-		if strings.Contains(n.StackType, "IPV6") && n.Ipv6AccessConfigs == nil {
+		if strings.Contains(n.StackType, "IPV6") && n.Ipv6AccessConfigs == nil && n.Ipv6AccessType != "INTERNAL" {
 			n.Ipv6AccessConfigs = defaultIpv6Acs
 		}
 		if (n.StackType == "" || strings.Contains(n.StackType, "IPV4")) && n.AccessConfigs == nil {
@@ -559,7 +559,7 @@ func (i *InstanceBeta) populateNetworks() DError {
 		i.NetworkInterfaces = []*computeBeta.NetworkInterface{{}}
 	}
 	for _, n := range i.NetworkInterfaces {
-		if strings.Contains(n.StackType, "IPV6") && n.Ipv6AccessConfigs == nil {
+		if strings.Contains(n.StackType, "IPV6") && n.Ipv6AccessConfigs == nil && n.Ipv6AccessType != "INTERNAL" {
 			n.Ipv6AccessConfigs = defaultIpv6Acs
 		}
 		if (n.StackType == "" || strings.Contains(n.StackType, "IPV4")) && n.AccessConfigs == nil {
