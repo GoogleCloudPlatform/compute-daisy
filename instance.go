@@ -521,16 +521,20 @@ func (ib *InstanceBase) populateMetadata(ii InstanceInterface, w *Workflow) DErr
 
 func (i *Instance) populateNetworks() DError {
 	defaultAcs := []*compute.AccessConfig{{Type: defaultAccessConfigType}}
+	defaultIpv6Acs := []*compute.AccessConfig{{Type: "DIRECT_IPV6", NetworkTier: "PREMIUM"}}
 
 	if i.NetworkInterfaces == nil {
 		i.NetworkInterfaces = []*compute.NetworkInterface{{}}
 	}
 	for _, n := range i.NetworkInterfaces {
-		if n.AccessConfigs == nil {
+		if strings.Contains(n.StackType, "IPV6") && n.Ipv6AccessConfigs == nil {
+			n.Ipv6AccessConfigs = defaultIpv6Acs
+		}
+		if (n.StackType == "" || strings.Contains(n.StackType, "IPV4")) && n.AccessConfigs == nil {
 			n.AccessConfigs = defaultAcs
 		}
 
-		// Only set deafult if no subnetwork or network set.
+		// Only set default if no subnetwork or network set.
 		if n.Subnetwork == "" {
 			n.Network = strOr(n.Network, "global/networks/default")
 		}
@@ -549,16 +553,20 @@ func (i *Instance) populateNetworks() DError {
 
 func (i *InstanceBeta) populateNetworks() DError {
 	defaultAcs := []*computeBeta.AccessConfig{{Type: defaultAccessConfigType}}
+	defaultIpv6Acs := []*computeBeta.AccessConfig{{Type: "DIRECT_IPV6", NetworkTier: "PREMIUM"}}
 
 	if i.NetworkInterfaces == nil {
 		i.NetworkInterfaces = []*computeBeta.NetworkInterface{{}}
 	}
 	for _, n := range i.NetworkInterfaces {
-		if n.AccessConfigs == nil {
+		if strings.Contains(n.StackType, "IPV6") && n.Ipv6AccessConfigs == nil {
+			n.Ipv6AccessConfigs = defaultIpv6Acs
+		}
+		if (n.StackType == "" || strings.Contains(n.StackType, "IPV4")) && n.AccessConfigs == nil {
 			n.AccessConfigs = defaultAcs
 		}
 
-		// Only set deafult if no subnetwork or network set.
+		// Only set default if no subnetwork or network set.
 		if n.Subnetwork == "" {
 			n.Network = strOr(n.Network, "global/networks/default")
 		}

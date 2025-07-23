@@ -178,7 +178,7 @@ func TestInstancePopulateDisks(t *testing.T) {
 		},
 	}
 
-	assertTest := func(err DError, desc string, ad, wantAd interface{}) {
+	assertTest := func(err DError, desc string, ad, wantAd any) {
 		if err != nil {
 			t.Errorf("%s: populateDisks returned an unexpected error: %v", desc, err)
 		} else if diffRes := diff(ad, wantAd, 0); diffRes != "" {
@@ -282,7 +282,7 @@ func TestInstancePopulateMetadata(t *testing.T) {
 		return func(i, j int) bool { return items[i].Key < items[j].Key }
 	}
 
-	assertTest := func(shouldErr bool, err DError, desc string, md, wantMd interface{}) {
+	assertTest := func(shouldErr bool, err DError, desc string, md, wantMd any) {
 		if err == nil {
 			if shouldErr {
 				t.Errorf("%s: populateMetadata should have errored but didn't", desc)
@@ -320,78 +320,104 @@ func TestInstancePopulateMetadata(t *testing.T) {
 func TestInstancePopulateNetworks(t *testing.T) {
 	defaultAcs := []*compute.AccessConfig{{Type: "ONE_TO_ONE_NAT"}}
 	defaultAcsBeta := []*computeBeta.AccessConfig{{Type: "ONE_TO_ONE_NAT"}}
+	defaultIpv6Acs := []*compute.AccessConfig{{Type: "DIRECT_IPV6", NetworkTier: "PREMIUM"}}
+	defaultIpv6AcsBeta := []*computeBeta.AccessConfig{{Type: "DIRECT_IPV6", NetworkTier: "PREMIUM"}}
+
 	tests := []struct {
-		desc                string
+		name                string
 		input, want         []*compute.NetworkInterface
 		inputBeta, wantBeta []*computeBeta.NetworkInterface
 	}{
 		{
-			"default case",
-			nil,
-			[]*compute.NetworkInterface{{
+			name:  "default",
+			input: nil,
+			want: []*compute.NetworkInterface{{
 				Network:       fmt.Sprintf("projects/%s/global/networks/default", testProject),
 				AccessConfigs: defaultAcs,
 			}},
-			nil,
-			[]*computeBeta.NetworkInterface{{
+			inputBeta: nil,
+			wantBeta: []*computeBeta.NetworkInterface{{
 				Network:       fmt.Sprintf("projects/%s/global/networks/default", testProject),
 				AccessConfigs: defaultAcsBeta,
 			}},
 		},
 		{
-			"default AccessConfig case",
-			[]*compute.NetworkInterface{{
+			name: "default-acs",
+			input: []*compute.NetworkInterface{{
 				Network:    "global/networks/foo",
 				Subnetwork: fmt.Sprintf("regions/%s/subnetworks/bar", getRegionFromZone(testZone)),
 			}},
-			[]*compute.NetworkInterface{{
+			want: []*compute.NetworkInterface{{
 				Network:       fmt.Sprintf("projects/%s/global/networks/foo", testProject),
 				AccessConfigs: defaultAcs,
 				Subnetwork:    fmt.Sprintf("projects/%s/regions/%s/subnetworks/bar", testProject, getRegionFromZone(testZone)),
 			}},
-			[]*computeBeta.NetworkInterface{{
+			inputBeta: []*computeBeta.NetworkInterface{{
 				Network:    "global/networks/foo",
 				Subnetwork: fmt.Sprintf("regions/%s/subnetworks/bar", getRegionFromZone(testZone)),
 			}},
-			[]*computeBeta.NetworkInterface{{
+			wantBeta: []*computeBeta.NetworkInterface{{
 				Network:       fmt.Sprintf("projects/%s/global/networks/foo", testProject),
 				AccessConfigs: defaultAcsBeta,
 				Subnetwork:    fmt.Sprintf("projects/%s/regions/%s/subnetworks/bar", testProject, getRegionFromZone(testZone)),
 			}},
 		},
 		{
-			"subnetwork case",
-			[]*compute.NetworkInterface{{
+			name: "default-ipv6-acs",
+			input: []*compute.NetworkInterface{{
+				Network:   fmt.Sprintf("projects/%s/global/networks/foo", testProject),
+				StackType: "IPV6_ONLY",
+			}},
+			want: []*compute.NetworkInterface{{
+				Network:           fmt.Sprintf("projects/%s/global/networks/foo", testProject),
+				StackType:         "IPV6_ONLY",
+				Ipv6AccessConfigs: defaultIpv6Acs,
+			}},
+			inputBeta: []*computeBeta.NetworkInterface{{
+				Network:   fmt.Sprintf("projects/%s/global/networks/foo", testProject),
+				StackType: "IPV6_ONLY",
+			}},
+			wantBeta: []*computeBeta.NetworkInterface{{
+				Network:           fmt.Sprintf("projects/%s/global/networks/foo", testProject),
+				StackType:         "IPV6_ONLY",
+				Ipv6AccessConfigs: defaultIpv6AcsBeta,
+			}},
+		},
+		{
+			name: "subnetwork",
+			input: []*compute.NetworkInterface{{
 				Subnetwork: fmt.Sprintf("regions/%s/subnetworks/bar", getRegionFromZone(testZone)),
 			}},
-			[]*compute.NetworkInterface{{
+			want: []*compute.NetworkInterface{{
 				AccessConfigs: defaultAcs,
 				Subnetwork:    fmt.Sprintf("projects/%s/regions/%s/subnetworks/bar", testProject, getRegionFromZone(testZone)),
 			}},
-			[]*computeBeta.NetworkInterface{{
+			inputBeta: []*computeBeta.NetworkInterface{{
 				Subnetwork: fmt.Sprintf("regions/%s/subnetworks/bar", getRegionFromZone(testZone)),
 			}},
-			[]*computeBeta.NetworkInterface{{
+			wantBeta: []*computeBeta.NetworkInterface{{
 				AccessConfigs: defaultAcsBeta,
 				Subnetwork:    fmt.Sprintf("projects/%s/regions/%s/subnetworks/bar", testProject, getRegionFromZone(testZone)),
 			}},
 		},
-	}
-
-	assertTest := func(err DError, desc string, got, want interface{}) {
-		if err != nil {
-			t.Errorf("%s: should have returned an error", desc)
-		} else if diffRes := diff(got, want, 0); diffRes != "" {
-			t.Errorf("%s: NetworkInterfaces not modified as expected: (-got +want)\n%s", desc, diffRes)
-		}
 	}
 
 	for _, tt := range tests {
-		i := &Instance{Instance: compute.Instance{NetworkInterfaces: tt.input}, InstanceBase: InstanceBase{Resource: Resource{Project: testProject}}}
-		assertTest(i.populateNetworks(), tt.desc, i.NetworkInterfaces, tt.want)
+		t.Run(tt.name, func(t *testing.T) {
+			assertTest := func(err DError, got, want any) {
+				if err != nil {
+					t.Errorf("should have returned an error")
+				} else if diffRes := diff(got, want, 0); diffRes != "" {
+					t.Errorf("NetworkInterfaces not modified as expected: (-got +want)\n%s", diffRes)
+				}
+			}
 
-		iBeta := &InstanceBeta{Instance: computeBeta.Instance{NetworkInterfaces: tt.inputBeta}, InstanceBase: InstanceBase{Resource: Resource{Project: testProject}}}
-		assertTest(iBeta.populateNetworks(), tt.desc, iBeta.NetworkInterfaces, tt.wantBeta)
+			i := &Instance{Instance: compute.Instance{NetworkInterfaces: tt.input}, InstanceBase: InstanceBase{Resource: Resource{Project: testProject}}}
+			assertTest(i.populateNetworks(), i.NetworkInterfaces, tt.want)
+
+			iBeta := &InstanceBeta{Instance: computeBeta.Instance{NetworkInterfaces: tt.inputBeta}, InstanceBase: InstanceBase{Resource: Resource{Project: testProject}}}
+			assertTest(iBeta.populateNetworks(), iBeta.NetworkInterfaces, tt.wantBeta)
+		})
 	}
 }
 

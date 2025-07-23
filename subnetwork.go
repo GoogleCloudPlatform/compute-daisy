@@ -21,6 +21,8 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"slices"
+	"strings"
 
 	daisyCompute "github.com/GoogleCloudPlatform/compute-daisy/compute"
 	"google.golang.org/api/compute/v1"
@@ -29,10 +31,15 @@ import (
 
 var (
 	subnetworkURLRegex = regexp.MustCompile(fmt.Sprintf(`^(projects/(?P<project>%[1]s)/)?regions/(?P<region>%[2]s)/subnetworks/(?P<subnetwork>%[2]s)$`, projectRgxStr, rfc1035))
+
+	// Valid stack types for subnetworks.
+	validStackType = []string{"IPV4_ONLY", "IPV4_IPV6", "IPV6_ONLY"}
+	// Valid IPv6 access types for subnetworks.
+	validIpv6AccessType = []string{"INTERNAL", "EXTERNAL"}
 )
 
 func (w *Workflow) subnetworkExists(project, region, subnetwork string) (bool, DError) {
-	return w.subnetworkCache.resourceExists(func(project, region string, opts ...daisyCompute.ListCallOption) (interface{}, error) {
+	return w.subnetworkCache.resourceExists(func(project, region string, opts ...daisyCompute.ListCallOption) (any, error) {
 		return w.ComputeClient.ListSubnetworks(project, region)
 	}, project, region, subnetwork)
 }
@@ -72,8 +79,46 @@ func (sn *Subnetwork) validate(ctx context.Context, s *Step) DError {
 		errs = addErrs(errs, Errf("%s: network is mandatory", pre))
 	}
 	sn.Region = strOr(sn.Region, getRegionFromZone(s.w.Zone))
-	if _, _, err := net.ParseCIDR(sn.IpCidrRange); err != nil {
-		errs = addErrs(errs, Errf("%s: bad IpCidrRange: %q, error: %v", pre, sn.IpCidrRange, err))
+
+	// Check the stack type.
+	if sn.StackType != "" {
+		if !slices.Contains(validStackType, sn.StackType) {
+			errs = addErrs(errs, Errf("%s: invalid stack type: %q, must be one of %v", pre, sn.StackType, validStackType))
+		}
+	}
+	// If unspecified, the stack type defaults to IPV4_ONLY.
+	if sn.StackType == "" || strings.Contains(sn.StackType, "IPV4") {
+		if _, _, err := net.ParseCIDR(sn.IpCidrRange); err != nil {
+			errs = addErrs(errs, Errf("%s: bad IpCidrRange: %q, error: %v", pre, sn.IpCidrRange, err))
+		}
+	}
+	if strings.Contains(sn.StackType, "IPV6") {
+		if sn.StackType == "IPV6_ONLY" && sn.IpCidrRange != "" {
+			errs = addErrs(errs, Errf("%s: IPv6-only subnetworks must not have an IPv4 CIDR range", pre))
+		}
+		if sn.Ipv6CidrRange != "" {
+			if _, _, err := net.ParseCIDR(sn.Ipv6CidrRange); err != nil {
+				errs = addErrs(errs, Errf("%s: bad Ipv6CidrRange: %q, error: %v", pre, sn.Ipv6CidrRange, err))
+			}
+		}
+		if sn.Ipv6AccessType == "" {
+			errs = addErrs(errs, Errf("%s: ipv6 access type is mandatory", pre))
+		} else {
+			// Check the IPv6 access type.
+			if !slices.Contains(validIpv6AccessType, sn.Ipv6AccessType) {
+				errs = addErrs(errs, Errf("%s: invalid IPv6 access type: %q, must be one of %v", pre, sn.Ipv6AccessType, validIpv6AccessType))
+			}
+			if sn.InternalIpv6Prefix != "" {
+				if _, _, err := net.ParseCIDR(sn.InternalIpv6Prefix); err != nil {
+					errs = addErrs(errs, Errf("%s: bad InternalIpv6Prefix: %q, error: %v", pre, sn.InternalIpv6Prefix, err))
+				}
+			}
+			if sn.Ipv6AccessType == "EXTERNAL" && sn.ExternalIpv6Prefix != "" {
+				if _, _, err := net.ParseCIDR(sn.ExternalIpv6Prefix); err != nil {
+					errs = addErrs(errs, Errf("%s: bad ExternalIpv6Prefix: %q, error: %v", pre, sn.ExternalIpv6Prefix, err))
+				}
+			}
+		}
 	}
 
 	// Register creation.
