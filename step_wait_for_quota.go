@@ -101,7 +101,7 @@ func (aq *WaitForAvailableQuotas) run(ctx context.Context, s *Step) DError {
 			}
 			if len(successmsgs) == len(aq.Quotas) {
 				for _, m := range successmsgs {
-					s.w.LogStepInfo(s.name, "WaitForAvailableQuotas", m)
+					s.w.LogStepInfo(s.name, "WaitForAvailableQuotas", "%s", m)
 				}
 				return nil
 			}

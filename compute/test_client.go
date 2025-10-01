@@ -45,7 +45,7 @@ func NewTestClient(handleFunc http.HandlerFunc) (*httptest.Server, *TestClient, 
 	return ts, tc, nil
 }
 
-// TestClient is a Client with overrideable methods.
+// TestClient is a Client with overridable methods.
 type TestClient struct {
 	client
 
@@ -135,6 +135,14 @@ type TestClient struct {
 	CreateRegionNetworkEndpointGroupFn func(project, region string, n *compute.NetworkEndpointGroup) error
 	ListRegionNetworkEndpointGroupsFn  func(project, region string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error)
 	GetRegionNetworkEndpointGroupFn    func(project, region, name string) (*compute.NetworkEndpointGroup, error)
+	CreateNetworkEndpointGroupFn       func(project, zone string, n *compute.NetworkEndpointGroup) error
+	DeleteNetworkEndpointGroupFn       func(project, zone, name string) error
+	ListNetworkEndpointGroupsFn        func(project, zone string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error)
+	GetNetworkEndpointGroupFn          func(project, zone, name string) (*compute.NetworkEndpointGroup, error)
+	CreateRouteFn                      func(project string, r *compute.Route) error
+	GetRouteFn                         func(project, name string) (*compute.Route, error)
+	ListRoutesFn                       func(project string, opts ...ListCallOption) ([]*compute.Route, error)
+	DeleteRouteFn                      func(project, name string) error
 
 	// Alpha API calls
 	CreateInstanceAlphaFn func(project, zone string, i *computeAlpha.Instance) error
@@ -873,4 +881,68 @@ func (c *TestClient) GetRegionNetworkEndpointGroup(project, region, name string)
 		return c.GetRegionNetworkEndpointGroupFn(project, region, name)
 	}
 	return c.client.GetRegionNetworkEndpointGroup(project, region, name)
+}
+
+// CreateNetworkEndpointGroup uses the override method CreateNetworkEndpointGroupFn or the real implementation.
+func (c *TestClient) CreateNetworkEndpointGroup(project, zone string, p *compute.NetworkEndpointGroup) error {
+	if c.CreateNetworkEndpointGroupFn != nil {
+		return c.CreateNetworkEndpointGroupFn(project, zone, p)
+	}
+	return c.client.CreateNetworkEndpointGroup(project, zone, p)
+}
+
+// DeleteNetworkEndpointGroup uses the override method DeleteNetworkEndpointGroupFn or the real implementation.
+func (c *TestClient) DeleteNetworkEndpointGroup(project, zone, name string) error {
+	if c.DeleteNetworkEndpointGroupFn != nil {
+		return c.DeleteNetworkEndpointGroupFn(project, zone, name)
+	}
+	return c.client.DeleteNetworkEndpointGroup(project, zone, name)
+}
+
+// ListNetworkEndpointGroups uses the override method ListNetworkEndpointGroupsFn or the real implementation.
+func (c *TestClient) ListNetworkEndpointGroups(project, zone string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error) {
+	if c.ListNetworkEndpointGroupsFn != nil {
+		return c.ListNetworkEndpointGroupsFn(project, zone, opts...)
+	}
+	return c.client.ListNetworkEndpointGroups(project, zone, opts...)
+}
+
+// GetNetworkEndpointGroup uses the override method GetNetworkEndpointGroupFn or the real implementation.
+func (c *TestClient) GetNetworkEndpointGroup(project, zone, name string) (*compute.NetworkEndpointGroup, error) {
+	if c.GetNetworkEndpointGroupFn != nil {
+		return c.GetNetworkEndpointGroupFn(project, zone, name)
+	}
+	return c.client.GetNetworkEndpointGroup(project, zone, name)
+}
+
+// CreateRoute uses the override method CreateRouteFn or the real implementation.
+func (c *TestClient) CreateRoute(project string, r *compute.Route) error {
+	if c.CreateRouteFn != nil {
+		return c.CreateRouteFn(project, r)
+	}
+	return c.client.CreateRoute(project, r)
+}
+
+// GetRoute uses the override method GetRouteFn or the real implementation.
+func (c *TestClient) GetRoute(project, name string) (*compute.Route, error) {
+	if c.GetRouteFn != nil {
+		return c.GetRouteFn(project, name)
+	}
+	return c.client.GetRoute(project, name)
+}
+
+// DeleteRoute uses the override method DeleteRouteFn or the real implementation.
+func (c *TestClient) DeleteRoute(project, name string) error {
+	if c.DeleteRouteFn != nil {
+		return c.DeleteRouteFn(project, name)
+	}
+	return c.client.DeleteRoute(project, name)
+}
+
+// ListRoutes uses the override method ListRoutesFn or the real implementation.
+func (c *TestClient) ListRoutes(project string, opts ...ListCallOption) ([]*compute.Route, error) {
+	if c.ListRoutesFn != nil {
+		return c.ListRoutesFn(project, opts...)
+	}
+	return c.client.ListRoutes(project, opts...)
 }

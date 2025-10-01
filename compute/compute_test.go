@@ -54,6 +54,7 @@ var (
 	testBackendService             = "test-backend-service"
 	testHealthCheck                = "test-health-check"
 	testNetworkEndpointGroup       = "test-network-endpoint-group"
+	testRoute                      = "test-route"
 )
 
 func TestShouldRetryWithWait(t *testing.T) {
@@ -81,7 +82,7 @@ func TestShouldRetryWithWait(t *testing.T) {
 func TestCreates(t *testing.T) {
 	var getURL, insertURL *string
 	var getErr, insertErr, waitErr error
-	var getResp interface{}
+	var getResp any
 	svr, c, err := NewTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		url := r.URL.String()
 		if r.Method == "POST" && url == *insertURL {
@@ -145,11 +146,12 @@ func TestCreates(t *testing.T) {
 	bs := &compute.BackendService{Name: testBackendService}
 	hc := &compute.HealthCheck{Name: testHealthCheck}
 	neg := &compute.NetworkEndpointGroup{Name: testNetworkEndpointGroup}
+	rt := &compute.Route{Name: testRoute, Network: testNetwork, DestRange: "10.0.0.0/8", NextHopGateway: "default-internet-gateway"}
 	creates := []struct {
 		name              string
 		do                func() error
 		getURL, insertURL string
-		getResp, resource interface{}
+		getResp, resource any
 	}{
 		{
 			"disks",
@@ -289,9 +291,25 @@ func TestCreates(t *testing.T) {
 		},
 		{
 			"regionNetworkEndpointGroups",
-			func() error { return c.CreateRegionNetworkEndpointGroup(testProject, testRegion, neg) },
-			fmt.Sprintf("/%s/regions/%s/networkEndpointGroups/%s?alt=json&prettyPrint=false", testProject, testRegion, testNetworkEndpointGroup),
-			fmt.Sprintf("/%s/regions/%s/networkEndpointGroups?alt=json&prettyPrint=false", testProject, testRegion),
+			func() error { return c.CreateRegionNetworkEndpointGroup(testProject, testZone, neg) },
+			fmt.Sprintf("/%s/regions/%s/networkEndpointGroups/%s?alt=json&prettyPrint=false", testProject, testZone, testNetworkEndpointGroup),
+			fmt.Sprintf("/%s/regions/%s/networkEndpointGroups?alt=json&prettyPrint=false", testProject, testZone),
+			&compute.NetworkEndpointGroup{Name: testNetworkEndpointGroup},
+			neg,
+		},
+		{
+			"routes",
+			func() error { return c.CreateRoute(testProject, rt) },
+			fmt.Sprintf("/%s/regions/%s/routes/%s?alt=json&prettyPrint=false", testProject, testRegion, testRoute),
+			fmt.Sprintf("/%s/regions/%s/routes?alt=json&prettyPrint=false", testProject, testRegion),
+			&compute.Route{Name: testRoute, Network: testNetwork, DestRange: "10.0.0.0/8", NextHopGateway: "default-internet-gateway"},
+			rt,
+		},
+		{
+			"zonalNetworkEndpointGroups",
+			func() error { return c.CreateNetworkEndpointGroup(testProject, testZone, neg) },
+			fmt.Sprintf("/%s/zones/%s/networkEndpointGroups/%s?alt=json&prettyPrint=false", testProject, testZone, testNetworkEndpointGroup),
+			fmt.Sprintf("/%s/zones/%s/networkEndpointGroups?alt=json&prettyPrint=false", testProject, testZone),
 			&compute.NetworkEndpointGroup{Name: testNetworkEndpointGroup},
 			neg,
 		},
@@ -473,6 +491,24 @@ func TestDeletes(t *testing.T) {
 			},
 			fmt.Sprintf("/projects/%s/regions/%s/networkEndpointGroups/%s?alt=json&prettyPrint=false", testProject, testRegion, testNetworkEndpointGroup),
 			fmt.Sprintf("/projects/%s/regions/%s/operations//wait?alt=json&prettyPrint=false", testProject, testRegion),
+		},
+		{
+			"networkEndpointGroups",
+			func() error { return c.DeleteNetworkEndpointGroup(testProject, testZone, testNetworkEndpointGroup) },
+			fmt.Sprintf("/projects/%s/zones/%s/networkEndpointGroups/%s?alt=json&prettyPrint=false", testProject, testZone, testNetworkEndpointGroup),
+			fmt.Sprintf("/projects/%s/zones/%s/operations//wait?alt=json&prettyPrint=false", testProject, testZone),
+		},
+		{
+			"routes",
+			func() error { return c.DeleteRoute(testProject, testRoute) },
+			fmt.Sprintf("/projects/%s/global/routes/%s?alt=json&prettyPrint=false", testProject, testRoute),
+			fmt.Sprintf("/projects/%s/global/operations//wait?alt=json&prettyPrint=false", testProject),
+		},
+		{
+			"zonalNetworkEndpointGroups",
+			func() error { return c.DeleteNetworkEndpointGroup(testProject, testZone, testNetworkEndpointGroup) },
+			fmt.Sprintf("/projects/%s/zones/%s/networkEndpointGroups/%s?alt=json&prettyPrint=false", testProject, testZone, testNetworkEndpointGroup),
+			fmt.Sprintf("/projects/%s/zones/%s/operations//wait?alt=json&prettyPrint=false", testProject, testZone),
 		},
 	}
 

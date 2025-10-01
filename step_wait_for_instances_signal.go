@@ -51,7 +51,7 @@ func (fms *FailureMatches) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 
-	//not a string, try unmarshalling into an array. Need a temp type to avoid infinite loop.
+	// not a string, try unmarshalling into an array. Need a temp type to avoid infinite loop.
 	var ss []string
 	if err := json.Unmarshal(b, &ss); err != nil {
 		return err
@@ -160,7 +160,7 @@ func waitForSerialOutput(s *Step, project, zone, name string, so *SerialOutput, 
 	if so.StatusMatch != "" {
 		msg += fmt.Sprintf(", StatusMatch: %q", so.StatusMatch)
 	}
-	w.LogStepInfo(s.name, "WaitForInstancesSignal", msg+".")
+	w.LogStepInfo(s.name, "WaitForInstancesSignal", "%s.", msg)
 	var start int64
 	var errs int
 	tailString := ""
@@ -247,7 +247,7 @@ func waitForGuestAttribute(s *Step, project, zone, name string, ga *GuestAttribu
 	if ga.SuccessValue != "" {
 		msg += fmt.Sprintf(", SuccessValue: %q", ga.SuccessValue)
 	}
-	w.LogStepInfo(s.name, "WaitForInstancesSignal", msg+".")
+	w.LogStepInfo(s.name, "WaitForInstancesSignal", "%s.", msg)
 	// The limit for querying guest attributes is documented as 10 queries/minute.
 	minInterval, err := time.ParseDuration("6s")
 	if err == nil && interval < minInterval {

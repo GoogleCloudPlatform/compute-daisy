@@ -140,6 +140,14 @@ type Client interface {
 	CreateRegionNetworkEndpointGroup(project, region string, n *compute.NetworkEndpointGroup) error
 	ListRegionNetworkEndpointGroups(project, region string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error)
 	GetRegionNetworkEndpointGroup(project, region, name string) (*compute.NetworkEndpointGroup, error)
+	DeleteNetworkEndpointGroup(project, zone, name string) error
+	CreateNetworkEndpointGroup(project, zone string, n *compute.NetworkEndpointGroup) error
+	ListNetworkEndpointGroups(project, zone string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error)
+	GetNetworkEndpointGroup(project, zone, name string) (*compute.NetworkEndpointGroup, error)
+	CreateRoute(project string, r *compute.Route) error
+	GetRoute(project, name string) (*compute.Route, error)
+	ListRoutes(project string, opts ...ListCallOption) ([]*compute.Route, error)
+	DeleteRoute(project, name string) error
 
 	Retry(f func(opts ...googleapi.CallOption) (*compute.Operation, error), opts ...googleapi.CallOption) (op *compute.Operation, err error)
 	RetryBeta(f func(opts ...googleapi.CallOption) (*computeBeta.Operation, error), opts ...googleapi.CallOption) (op *computeBeta.Operation, err error)
@@ -148,7 +156,7 @@ type Client interface {
 
 // A ListCallOption is an option for a Google Compute API *ListCall.
 type ListCallOption interface {
-	listCallOptionApply(interface{}) interface{}
+	listCallOptionApply(any) any
 }
 
 // OrderBy sets the optional parameter "orderBy": Sorts list results by a
@@ -156,8 +164,12 @@ type ListCallOption interface {
 // based on the resource name.
 type OrderBy string
 
-func (o OrderBy) listCallOptionApply(i interface{}) interface{} {
+func (o OrderBy) listCallOptionApply(i any) any {
 	switch c := i.(type) {
+	case *compute.NetworkEndpointGroupsListCall:
+		return c.OrderBy(string(o))
+	case *compute.RoutesListCall:
+		return c.OrderBy(string(o))
 	case *compute.FirewallsListCall:
 		return c.OrderBy(string(o))
 	case *computeAlpha.ImagesListCall:
@@ -197,8 +209,12 @@ func (o OrderBy) listCallOptionApply(i interface{}) interface{} {
 // field_name comparison_string literal_string.
 type Filter string
 
-func (o Filter) listCallOptionApply(i interface{}) interface{} {
+func (o Filter) listCallOptionApply(i any) any {
 	switch c := i.(type) {
+	case *compute.NetworkEndpointGroupsListCall:
+		return c.Filter(string(o))
+	case *compute.RoutesListCall:
+		return c.Filter(string(o))
 	case *compute.FirewallsListCall:
 		return c.Filter(string(o))
 	case *computeAlpha.ImagesListCall:
@@ -758,6 +774,65 @@ func (c *client) ListRegionBackendServices(project, region string, opts ...ListC
 	}
 }
 
+// CreateRoute creates a GCE Route.
+func (c *client) CreateRoute(project string, r *compute.Route) error {
+	op, err := c.Retry(c.raw.Routes.Insert(project, r).Do)
+	if err != nil {
+		return err
+	}
+	if err := c.i.globalOperationsWait(project, op.Name); err != nil {
+		return err
+	}
+	var createdRoute *compute.Route
+	if createdRoute, err = c.i.GetRoute(project, r.Name); err != nil {
+		return err
+	}
+	*r = *createdRoute
+	return nil
+}
+
+// GetRoute gets a GCE Route.
+func (c *client) GetRoute(project, name string) (*compute.Route, error) {
+	i, err := c.raw.Routes.Get(project, name).Do()
+	if shouldRetryWithWait(c.hc.Transport, err, 2) {
+		return c.raw.Routes.Get(project, name).Do()
+	}
+	return i, err
+}
+
+// DeleteRoute deletes a GCE Route.
+func (c *client) DeleteRoute(project, route string) error {
+	op, err := c.Retry(c.raw.Routes.Delete(project, route).Do)
+	if err != nil {
+		return err
+	}
+	return c.i.globalOperationsWait(project, op.Name)
+}
+
+// ListRoutes lists GCE Routes.
+func (c *client) ListRoutes(project string, opts ...ListCallOption) ([]*compute.Route, error) {
+	var is []*compute.Route
+	var pt string
+	call := c.raw.Routes.List(project)
+	for _, opt := range opts {
+		call = opt.listCallOptionApply(call).(*compute.RoutesListCall)
+	}
+	for il, err := call.PageToken(pt).Do(); ; il, err = call.PageToken(pt).Do() {
+		if shouldRetryWithWait(c.hc.Transport, err, 2) {
+			il, err = call.PageToken(pt).Do()
+		}
+		if err != nil {
+			return nil, err
+		}
+		is = append(is, il.Items...)
+
+		if il.NextPageToken == "" {
+			return is, nil
+		}
+		pt = il.NextPageToken
+	}
+}
+
 // DeleteRegionURLMap deletes a GCE RegionURLMap.
 func (c *client) DeleteRegionURLMap(project, region, name string) error {
 	op, err := c.Retry(c.raw.RegionUrlMaps.Delete(project, region, name).Do)
@@ -918,6 +993,65 @@ func (c *client) ListRegionNetworkEndpointGroups(project, region string, opts ..
 	call := c.raw.RegionNetworkEndpointGroups.List(project, region)
 	for _, opt := range opts {
 		call = opt.listCallOptionApply(call).(*compute.RegionNetworkEndpointGroupsListCall)
+	}
+	for il, err := call.PageToken(pt).Do(); ; il, err = call.PageToken(pt).Do() {
+		if shouldRetryWithWait(c.hc.Transport, err, 2) {
+			il, err = call.PageToken(pt).Do()
+		}
+		if err != nil {
+			return nil, err
+		}
+		is = append(is, il.Items...)
+
+		if il.NextPageToken == "" {
+			return is, nil
+		}
+		pt = il.NextPageToken
+	}
+}
+
+// CreateRegionNetworkEndpointGroup creates a GCE NetworkEndpointGroup.
+func (c *client) CreateNetworkEndpointGroup(project, zone string, p *compute.NetworkEndpointGroup) error {
+	op, err := c.Retry(c.raw.NetworkEndpointGroups.Insert(project, zone, p).Do)
+	if err != nil {
+		return err
+	}
+	if err := c.i.zoneOperationsWait(project, zone, op.Name); err != nil {
+		return err
+	}
+	var createdNetworkEndpointGroup *compute.NetworkEndpointGroup
+	if createdNetworkEndpointGroup, err = c.i.GetNetworkEndpointGroup(project, zone, p.Name); err != nil {
+		return err
+	}
+	*p = *createdNetworkEndpointGroup
+	return nil
+}
+
+// DeleteNetworkEndpointGroup deletes a GCE NetworkEndpointGroup.
+func (c *client) DeleteNetworkEndpointGroup(project, zone, name string) error {
+	op, err := c.Retry(c.raw.NetworkEndpointGroups.Delete(project, zone, name).Do)
+	if err != nil {
+		return err
+	}
+	return c.i.zoneOperationsWait(project, zone, op.Name)
+}
+
+// GetNetworkEndpointGroup gets a GCE NetworkEndpointGroup.
+func (c *client) GetNetworkEndpointGroup(project, zone, name string) (*compute.NetworkEndpointGroup, error) {
+	i, err := c.raw.NetworkEndpointGroups.Get(project, zone, name).Do()
+	if shouldRetryWithWait(c.hc.Transport, err, 2) {
+		return c.raw.NetworkEndpointGroups.Get(project, zone, name).Do()
+	}
+	return i, err
+}
+
+// ListZoneNetworkEndpointGroups lists GCE NetworkEndpointGroups.
+func (c *client) ListNetworkEndpointGroups(project, zone string, opts ...ListCallOption) ([]*compute.NetworkEndpointGroup, error) {
+	var is []*compute.NetworkEndpointGroup
+	var pt string
+	call := c.raw.NetworkEndpointGroups.List(project, zone)
+	for _, opt := range opts {
+		call = opt.listCallOptionApply(call).(*compute.NetworkEndpointGroupsListCall)
 	}
 	for il, err := call.PageToken(pt).Do(); ; il, err = call.PageToken(pt).Do() {
 		if shouldRetryWithWait(c.hc.Transport, err, 2) {

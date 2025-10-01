@@ -97,8 +97,8 @@ func (w *Workflow) sourceContent(ctx context.Context, s string) (string, error) 
 		}
 		defer r.Close()
 
-		if r.Size() > 1024 {
-			return "", Errf("file size is too large %s/%s: %d", bkt, objPath, r.Size())
+		if r.Attrs.Size > 1024 {
+			return "", Errf("file size is too large %s/%s: %d", bkt, objPath, r.Attrs.Size)
 		}
 
 		var buf bytes.Buffer

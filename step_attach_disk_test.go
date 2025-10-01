@@ -33,7 +33,7 @@ func TestAttachDisksPopulate(t *testing.T) {
 	}
 	want := AttachDisks{{AttachedDisk: compute.AttachedDisk{Mode: defaultDiskMode, DeviceName: "someDisk", Source: "someDisk"}}}
 	if diffRes := diff(*ads, want, 0); diffRes != "" {
-		t.Errorf(diffRes)
+		t.Error(diffRes)
 	}
 }
 

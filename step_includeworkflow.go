@@ -42,7 +42,7 @@ func (i *IncludeWorkflow) populate(ctx context.Context, s *Step) DError {
 		}
 	} else {
 		if i.Workflow == nil {
-			return Errf(fmt.Sprintf("IncludeWorkflow %q does not have a workflow", s.name))
+			return Errf("IncludeWorkflow %q does not have a workflow", s.name)
 		}
 		s.w.includeWorkflow(i.Workflow)
 	}
