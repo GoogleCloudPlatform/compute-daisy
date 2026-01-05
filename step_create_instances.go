@@ -34,6 +34,13 @@ type CreateInstances struct {
 	InstancesBeta []*InstanceBeta
 }
 
+var (
+	externalIPDeniedPolicyConstraints = []string{
+		"constraints/compute.vmExternalIpAccess",
+		"constraints/compute.managed.vmExternalIpAccess",
+	}
+)
+
 // UnmarshalJSON unmarshals Instance.
 func (ci *CreateInstances) UnmarshalJSON(b []byte) error {
 	var instancesBeta []*InstanceBeta
@@ -242,7 +249,12 @@ func (ci *CreateInstances) instanceUsesBetaFeatures() bool {
 
 func isExternalIPDeniedByOrganizationPolicy(err error) bool {
 	if gErr, ok := err.(*googleapi.Error); ok && gErr.Code == http.StatusPreconditionFailed {
-		return strings.Contains(gErr.Message, "constraints/compute.vmExternalIpAccess")
+		errMsg := gErr.Message
+		for _, constraint := range externalIPDeniedPolicyConstraints {
+			if strings.Contains(errMsg, constraint) {
+				return true
+			}
+		}
 	}
 	return false
 }
