@@ -37,7 +37,7 @@
           ],
           "name": "consumer",
           "metadata": {
-            "startup-script": "gsutil cp ${gcs_file} . \u0026\u0026 gsutil rm ${gcs_file} \u0026\u0026 echo 'SUCCESS ${key}' || echo 'FAILURE ${key}'"
+            "startup-script": "gcloud storage cp ${gcs_file} . \u0026\u0026 gcloud storage rm ${gcs_file} \u0026\u0026 echo 'SUCCESS ${key}' || echo 'FAILURE ${key}'"
           },
           "Scopes": [
             "https://www.googleapis.com/auth/devstorage.read_write"

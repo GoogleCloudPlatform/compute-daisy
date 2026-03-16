@@ -84,9 +84,8 @@ the Sources bucket:
     $client.Headers.Add('Metadata-Flavor', 'Google')
     $url_to_query = 'http://metadata.google.internal/computeMetadata/v1/instance/attributes/daisy-sources-path'
     $daisy_sources_path = ($client.DownloadString($url_to_query)).Trim()
-    & gsutil cp "${daisy_sources_path}/file.txt" file.txt
+    & gcloud storage cp "${daisy_sources_path}/file.txt" file.txt
 
 This approach can be used to quickly and reliably download other scripts,
 installers, and even very large files. Any instance created by Daisy will
 automatically be given access to the appropriate Sources bucket.
-
