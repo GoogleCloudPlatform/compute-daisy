@@ -17,6 +17,7 @@ package daisy
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -153,7 +154,8 @@ func (w *Workflow) uploadSources(ctx context.Context) DError {
 			src := w.StorageClient.Bucket(bkt).Object(objPath)
 			dstPath := w.StorageClient.Bucket(w.bucket).Object(path.Join(w.sourcesPath, dst))
 			if _, err := dstPath.CopierFrom(src).Run(ctx); err != nil {
-				if gErr, ok := err.(*googleapi.Error); ok && gErr.Code == http.StatusNotFound {
+				var gErr *googleapi.Error
+				if errors.Is(err, storage.ErrObjectNotExist) || (errors.As(err, &gErr) && gErr.Code == http.StatusNotFound) {
 					return typedErrf(resourceDNEError, "error copying from file %s: %v", origPath, err)
 				}
 				return Errf("error copying from file %s: %v", origPath, err)
