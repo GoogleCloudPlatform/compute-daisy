@@ -14,7 +14,7 @@
 ARG PROJECT_ID=compute-image-tools-test
 FROM gcr.io/$PROJECT_ID/wrapper:latest
 
-FROM golang:bullseye
+FROM golang:latest
 
 WORKDIR /daisy
 COPY . .
