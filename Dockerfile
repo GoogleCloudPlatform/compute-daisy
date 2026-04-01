@@ -13,7 +13,7 @@
 # limitations under the License.
 
 FROM gcr.io/distroless/base as certs
-FROM golang:bullseye as build
+FROM golang:latest as build
 WORKDIR /go/src/daisy
 
 # Pre cache mod dependencies; this speeds up local development builds when
