@@ -23,6 +23,7 @@ RUN chmod +x /daisy_test_runner
 
 FROM alpine
 
+RUN apk upgrade --no-cache
 RUN apk add --no-cache git bash
 ENV GOOGLE_APPLICATION_CREDENTIALS /etc/compute-image-tools-test-service-account/creds.json
 
