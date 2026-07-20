@@ -108,6 +108,8 @@ type InstanceBase struct {
 	OverWrite bool `json:",omitempty"`
 	// Serial port to log to GCS bucket, defaults to 1
 	SerialPortsToLog []int64 `json:",omitempty"`
+	// AutoSelectDiskType prevents Daisy from defaulting empty InitializeParams.DiskType to pd-standard.
+	AutoSelectDiskType bool `json:",omitempty"`
 }
 
 // Instance is used to create a GCE instance using GA API.
@@ -393,11 +395,15 @@ func (i *Instance) populateDisks(w *Workflow) DError {
 			}
 
 			// Extend DiskType if short URL, or create extended URL.
-			p.DiskType = strOr(p.DiskType, defaultDiskType)
-			if diskTypeURLRgx.MatchString(p.DiskType) {
-				p.DiskType = extendPartialURL(p.DiskType, i.Project)
-			} else {
-				p.DiskType = fmt.Sprintf("projects/%s/zones/%s/diskTypes/%s", i.Project, i.Zone, p.DiskType)
+			if !i.AutoSelectDiskType {
+				p.DiskType = strOr(p.DiskType, defaultDiskType)
+			}
+			if p.DiskType != "" {
+				if diskTypeURLRgx.MatchString(p.DiskType) {
+					p.DiskType = extendPartialURL(p.DiskType, i.Project)
+				} else {
+					p.DiskType = fmt.Sprintf("projects/%s/zones/%s/diskTypes/%s", i.Project, i.Zone, p.DiskType)
+				}
 			}
 			parts := NamedSubexp(diskTypeURLRgx, p.DiskType)
 			if parts["disktype"] == "local-ssd" {
@@ -440,11 +446,15 @@ func (i *InstanceBeta) populateDisks(w *Workflow) DError {
 			}
 
 			// Extend DiskType if short URL, or create extended URL.
-			p.DiskType = strOr(p.DiskType, defaultDiskType)
-			if diskTypeURLRgx.MatchString(p.DiskType) {
-				p.DiskType = extendPartialURL(p.DiskType, i.Project)
-			} else {
-				p.DiskType = fmt.Sprintf("projects/%s/zones/%s/diskTypes/%s", i.Project, i.Zone, p.DiskType)
+			if !i.AutoSelectDiskType {
+				p.DiskType = strOr(p.DiskType, defaultDiskType)
+			}
+			if p.DiskType != "" {
+				if diskTypeURLRgx.MatchString(p.DiskType) {
+					p.DiskType = extendPartialURL(p.DiskType, i.Project)
+				} else {
+					p.DiskType = fmt.Sprintf("projects/%s/zones/%s/diskTypes/%s", i.Project, i.Zone, p.DiskType)
+				}
 			}
 			parts := NamedSubexp(diskTypeURLRgx, p.DiskType)
 			if parts["disktype"] == "local-ssd" {
@@ -701,15 +711,17 @@ func (ib *InstanceBase) validateDisks(ii InstanceInterface, s *Step) (errs DErro
 }
 
 func (ib *InstanceBase) validateDiskInitializeParams(d *computeDisk, ii InstanceInterface, s *Step) (errs DError) {
-	parts := NamedSubexp(diskTypeURLRgx, d.diskType)
-	if parts["project"] != ib.Project {
-		errs = addErrs(errs, Errf("cannot create instance in project %q with InitializeParams.DiskType in project %q", ib.Project, parts["project"]))
-	}
-	if parts["zone"] != ii.getZone() {
-		errs = addErrs(errs, Errf("cannot create instance in zone %q with InitializeParams.DiskType in zone %q", ii.getZone(), parts["zone"]))
-	}
-	if parts["disktype"] == "local-ssd" {
-		return
+	if d.diskType != "" {
+		parts := NamedSubexp(diskTypeURLRgx, d.diskType)
+		if parts["project"] != ib.Project {
+			errs = addErrs(errs, Errf("cannot create instance in project %q with InitializeParams.DiskType in project %q", ib.Project, parts["project"]))
+		}
+		if parts["zone"] != ii.getZone() {
+			errs = addErrs(errs, Errf("cannot create instance in zone %q with InitializeParams.DiskType in zone %q", ii.getZone(), parts["zone"]))
+		}
+		if parts["disktype"] == "local-ssd" {
+			return
+		}
 	}
 
 	if _, err := s.w.images.regUse(d.sourceImage, s); err != nil {

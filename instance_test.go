@@ -196,6 +196,68 @@ func TestInstancePopulateDisks(t *testing.T) {
 	}
 }
 
+func TestInstancePopulateDisksAutoSelectDiskType(t *testing.T) {
+	w := testWorkflow()
+	iName := "foo"
+	ad := []*compute.AttachedDisk{{InitializeParams: &compute.AttachedDiskInitializeParams{SourceImage: "i"}}}
+	wantAd := []*compute.AttachedDisk{{InitializeParams: &compute.AttachedDiskInitializeParams{DiskName: iName, SourceImage: "i", DiskType: ""}, Mode: defaultDiskMode, Boot: true, DeviceName: iName}}
+
+	i := Instance{
+		Instance: compute.Instance{Name: iName, Disks: ad, Zone: testZone},
+		InstanceBase: InstanceBase{
+			Resource:           Resource{Project: testProject},
+			AutoSelectDiskType: true,
+		},
+	}
+	if err := i.populateDisks(w); err != nil {
+		t.Fatalf("populateDisks returned an unexpected error: %v", err)
+	}
+	if diffRes := diff(ad, wantAd, 0); diffRes != "" {
+		t.Errorf("AttachedDisks not modified as expected: (-got +want)\n%s", diffRes)
+	}
+
+	adBeta := []*computeBeta.AttachedDisk{{InitializeParams: &computeBeta.AttachedDiskInitializeParams{SourceImage: "i"}}}
+	wantAdBeta := []*computeBeta.AttachedDisk{{InitializeParams: &computeBeta.AttachedDiskInitializeParams{DiskName: iName, SourceImage: "i", DiskType: ""}, Mode: defaultDiskMode, Boot: true, DeviceName: iName}}
+	iBeta := InstanceBeta{
+		Instance: computeBeta.Instance{Name: iName, Disks: adBeta, Zone: testZone},
+		InstanceBase: InstanceBase{
+			Resource:           Resource{Project: testProject},
+			AutoSelectDiskType: true,
+		},
+	}
+	if err := iBeta.populateDisks(w); err != nil {
+		t.Fatalf("populateDisks (beta) returned an unexpected error: %v", err)
+	}
+	if diffRes := diff(adBeta, wantAdBeta, 0); diffRes != "" {
+		t.Errorf("AttachedDisks (beta) not modified as expected: (-got +want)\n%s", diffRes)
+	}
+}
+
+func TestInstanceValidateDiskInitializeParamsAutoSelectDiskType(t *testing.T) {
+	w := testWorkflow()
+	w.images.m = map[string]*Resource{"i": {link: "iLink"}}
+	s, err := w.NewStep("s")
+	if err != nil {
+		t.Fatalf("NewStep returned error: %v", err)
+	}
+
+	ib := InstanceBase{Resource: Resource{Project: testProject, daisyName: "test-instance"}}
+	ii := &Instance{
+		Instance: compute.Instance{Name: "test-instance", Zone: testZone},
+	}
+
+	d := &computeDisk{
+		hasInitializeParams: true,
+		diskName:            "auto-select-disk",
+		sourceImage:         "i",
+		diskType:            "", // AutoSelectDiskType leaves this empty
+	}
+
+	if errs := ib.validateDiskInitializeParams(d, ii, s); errs != nil {
+		t.Errorf("validateDiskInitializeParams returned unexpected error when diskType is empty: %v", errs)
+	}
+}
+
 func TestInstancePopulateMachineType(t *testing.T) {
 	tests := []struct {
 		desc, mt, wantMt string
