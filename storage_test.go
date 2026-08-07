@@ -61,3 +61,31 @@ func TestSplitGCSPath(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateGCSPath(t *testing.T) {
+	tests := []struct {
+		name      string
+		prefix    string
+		want      string
+		shouldErr bool
+	}{
+		{"prefix/object", "prefix/", "object", false},
+		{"prefix/folder/object", "prefix/", "folder/object", false},
+		{"prefix/../escaped", "prefix/", "", true},
+		{"prefix/sub/../../escaped", "prefix/", "", true},
+		{"prefix/sub/../object", "prefix/", "object", false},
+		{"prefix/", "prefix/", "", true},
+		{"", "", "", true},
+		{"/absolute/path", "prefix/", "", true},
+	}
+
+	for _, tt := range tests {
+		got, err := validateGCSPath(tt.name, tt.prefix)
+		if (err != nil) != tt.shouldErr {
+			t.Errorf("validateGCSPath(%q, %q) unexpected error status: got err=[%v], want err=[%t]", tt.name, tt.prefix, err, tt.shouldErr)
+		}
+		if got != tt.want {
+			t.Errorf("validateGCSPath(%q, %q) = %q, want %q", tt.name, tt.prefix, got, tt.want)
+		}
+	}
+}
