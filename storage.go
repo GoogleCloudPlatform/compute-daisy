@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"path"
 	"regexp"
+	"strings"
 	"sync"
 )
 
@@ -77,3 +78,18 @@ type validatedBkts struct {
 
 var writableBkts validatedBkts
 var readableBkts validatedBkts
+
+// validateGCSPath cleans up the GCS object path and checks if it is valid.
+func validateGCSPath(name, prefix string) (string, DError) {
+	cleaned := path.Clean(name)
+	if !strings.HasPrefix(cleaned, prefix) {
+		return "", typedErrf(apiError, "invalid GCS object path %q, escaping prefix %q", name, prefix)
+	}
+	cleanedRel := strings.TrimPrefix(cleaned, prefix)
+	// Block absolute paths, exact matches, empty inputs, and unresolved backwards
+	// traversals.
+	if path.IsAbs(cleanedRel) || cleanedRel == "." || cleanedRel == "" || cleanedRel == ".." || strings.HasPrefix(cleanedRel, "../") {
+		return "", typedErrf(apiError, "invalid GCS object path %q, escaping prefix %q", name, prefix)
+	}
+	return cleanedRel, nil
+}
