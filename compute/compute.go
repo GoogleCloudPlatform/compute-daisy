@@ -2064,8 +2064,9 @@ func (c *client) InstanceStopped(project, zone, name string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	// See https://docs.cloud.google.com/dotnet/docs/reference/Google.Cloud.Compute.V1/latest/Google.Cloud.Compute.V1.Instance.Types.Status#assembly for reference
 	switch status {
-	case "PROVISIONING", "REPAIRING", "RUNNING", "STAGING", "STOPPING":
+	case "DEPROVISIONING", "PROVISIONING", "REPAIRING", "RUNNING", "STAGING", "STOPPING":
 		return false, nil
 	case "TERMINATED", "STOPPED":
 		return true, nil
