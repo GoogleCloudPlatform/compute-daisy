@@ -308,8 +308,11 @@ func newTestGCSClient() (*storage.Client, error) {
 	listObjsRgx := regexp.MustCompile(`/b/.+/o\?.*prefix=[^&]+.*`)
 	listObjsNoPrefixRgx := regexp.MustCompile(`/b/.+/o\?.*prefix=&.*`)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		u := r.URL.String()
+		if r.Method == "GET" && strings.Contains(u, "prefix=traversal") {
+			fmt.Fprint(w, `{"kind": "storage#objects", "items": [{"kind": "storage#object", "name": "traversal/../escaped", "size": "1"}]}`)
+			return
+		}
 		m := r.Method
 
 		if match := uploadRgx.FindStringSubmatch(u); m == "POST" && match != nil {

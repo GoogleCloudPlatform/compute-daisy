@@ -131,8 +131,12 @@ func recursiveGCS(ctx context.Context, w *Workflow, sBkt, sPrefix, dBkt, dPrefix
 		if objAttr.Size == 0 {
 			continue
 		}
+		cleanedRel, err := validateGCSPath(objAttr.Name, sPrefix)
+		if err != nil {
+			return err
+		}
 		srcPath := w.StorageClient.Bucket(sBkt).Object(objAttr.Name)
-		o := path.Join(dPrefix, strings.TrimPrefix(objAttr.Name, sPrefix))
+		o := path.Join(dPrefix, cleanedRel)
 		dstPath := w.StorageClient.Bucket(dBkt).Object(o)
 		if _, err := dstPath.CopierFrom(srcPath).Run(ctx); err != nil {
 			return typedErr(apiError, "failed to copy GCS object", err)
@@ -168,7 +172,7 @@ func (c *CopyGCSObjects) run(ctx context.Context, s *Step) DError {
 
 			if sObj == "" || strings.HasSuffix(sObj, "/") {
 				if err := recursiveGCS(ctx, s.w, sBkt, sObj, dBkt, dObj, co.ACLRules); err != nil {
-					e <- Errf("error copying from %s to %s: %v", co.Source, co.Destination, err)
+					e <- wrapErrf(err, "error copying from %s to %s", co.Source, co.Destination)
 					return
 				}
 				return
