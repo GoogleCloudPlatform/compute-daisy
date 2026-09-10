@@ -65,8 +65,12 @@ func (w *Workflow) recursiveGCS(ctx context.Context, bkt, prefix, dst string) DE
 		if objAttr.Size == 0 {
 			continue
 		}
+		cleanedRel, err := validateGCSPath(objAttr.Name, prefix)
+		if err != nil {
+			return err
+		}
 		srcPath := w.StorageClient.Bucket(bkt).Object(objAttr.Name)
-		o := path.Join(w.sourcesPath, dst, strings.TrimPrefix(objAttr.Name, prefix))
+		o := path.Join(w.sourcesPath, dst, cleanedRel)
 		dstPath := w.StorageClient.Bucket(w.bucket).Object(o)
 		if _, err := dstPath.CopierFrom(srcPath).Run(ctx); err != nil {
 			return typedErr(apiError, "failed to upload GCS object", err)
@@ -147,7 +151,7 @@ func (w *Workflow) uploadSources(ctx context.Context) DError {
 		if bkt, objPath, err := splitGCSPath(origPath); err == nil {
 			if objPath == "" || strings.HasSuffix(objPath, "/") {
 				if err := w.recursiveGCS(ctx, bkt, objPath, dst); err != nil {
-					return Errf("error copying from bucket %s: %v", origPath, err)
+					return wrapErrf(err, "error copying from bucket %s", origPath)
 				}
 				continue
 			}

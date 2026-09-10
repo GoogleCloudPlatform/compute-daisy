@@ -129,13 +129,14 @@ func TestCopyGCSObjectsRun(t *testing.T) {
 		t.Errorf("error running CopyGCSObjects.run(): %v", err)
 	}
 
-	for _, ws := range []*CopyGCSObjects{
+	for i, ws := range []*CopyGCSObjects{
 		{{Source: "gs://bucket", Destination: ""}},
 		{{Source: "", Destination: "gs://bucket"}},
 		{{Source: "gs://bucket/object/", Destination: "gs://bucket/object/", ACLRules: []*storage.ACLRule{{Entity: "someUser", Role: "OWNER"}}}},
+		{{Source: "gs://bucket/traversal/", Destination: "gs://bucket/dest/"}},
 	} {
 		if err := ws.run(ctx, s); err == nil {
-			t.Error("expected error")
+			t.Errorf("case %d: expected error for %+v, got nil", i, ws)
 		}
 	}
 }
