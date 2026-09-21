@@ -99,7 +99,6 @@ var (
 		DisableCapacities:       true,
 		DisablePointerAddresses: true,
 		SortKeys:                true,
-		SpewKeys:                true,
 	}
 )
 
