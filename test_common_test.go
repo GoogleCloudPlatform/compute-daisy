@@ -307,8 +307,11 @@ func newTestGCSClient() (*storage.Client, error) {
 	listObjsRgx := regexp.MustCompile(`/b/.+/o\?.*prefix=[^&]+.*`)
 	listObjsNoPrefixRgx := regexp.MustCompile(`/b/.+/o\?.*prefix=&.*`)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		u := r.URL.String()
+		if r.Method == "GET" && strings.Contains(u, "prefix=traversal") {
+			fmt.Fprint(w, `{"kind": "storage#objects", "items": [{"kind": "storage#object", "name": "traversal/../escaped", "size": "1"}]}`)
+			return
+		}
 		m := r.Method
 
 		if match := uploadRgx.FindStringSubmatch(u); m == "POST" && match != nil {
@@ -361,8 +364,12 @@ func newTestGCSClient() (*storage.Client, error) {
 				w.WriteHeader(http.StatusNotFound)
 				return
 			}
-			// Return 2 objects for testing recursiveGCS.
-			fmt.Fprint(w, `{"kind": "storage#objects", "items": [{"kind": "storage#object", "name": "folder/object", "size": "1"},{"kind": "storage#object", "name": "folder/folder/object", "size": "1"}]}`)
+			if strings.Contains(u, "prefix=object") {
+				fmt.Fprint(w, `{"kind": "storage#objects", "items": [{"kind": "storage#object", "name": "object/folder/object", "size": "1"},{"kind": "storage#object", "name": "object/folder/folder/object", "size": "1"}]}`)
+			} else {
+				// Return 2 objects for testing recursiveGCS.
+				fmt.Fprint(w, `{"kind": "storage#objects", "items": [{"kind": "storage#object", "name": "folder/object", "size": "1"},{"kind": "storage#object", "name": "folder/folder/object", "size": "1"}]}`)
+			}
 		} else if match := listObjsNoPrefixRgx.FindStringSubmatch(u); m == "GET" && match != nil {
 			// Return 2 objects for testing recursiveGCS.
 			fmt.Fprint(w, `{"kind": "storage#objects", "items": [{"kind": "storage#object", "name": "object", "size": "1"},{"kind": "storage#object", "name": "folder/object", "size": "1"}]}`)
