@@ -16,7 +16,10 @@ package daisy
 
 import (
 	"context"
+	"net/http"
 	"sync"
+
+	"google.golang.org/api/googleapi"
 )
 
 // CreateSubnetworks is a Daisy CreateSubnetwork workflow step.
@@ -53,8 +56,12 @@ func (c *CreateSubnetworks) run(ctx context.Context, s *Step) DError {
 
 			w.LogStepInfo(s.name, "CreateSubnetworks", "Creating subnetwork %q.", sn.Name)
 			if err := w.ComputeClient.CreateSubnetwork(sn.Project, sn.Region, &sn.Subnetwork); err != nil {
-				e <- newErr("failed to create subnetworks", err)
-				return
+				if gErr, ok := err.(*googleapi.Error); ok && gErr.Code == http.StatusConflict {
+					w.LogStepInfo(s.name, "CreateSubnetworks", "Subnetwork %q already exists, continuing.", sn.Name)
+				} else {
+					e <- newErr("failed to create subnetworks", err)
+					return
+				}
 			}
 			sn.createdInWorkflow = true
 		}(sn)
