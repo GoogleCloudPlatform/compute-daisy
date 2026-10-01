@@ -728,6 +728,8 @@ func TestInstanceValidateDiskInitializeParams(t *testing.T) {
 		shouldErr bool
 	}{
 		{"good case", &compute.AttachedDiskInitializeParams{DiskName: "foo", SourceImage: "i", DiskType: dt}, &computeBeta.AttachedDiskInitializeParams{DiskName: "foo-beta", SourceImage: "i", DiskType: dt}, false},
+		{"blank disk good case", &compute.AttachedDiskInitializeParams{DiskName: "blank", DiskSizeGb: 50, DiskType: dt}, &computeBeta.AttachedDiskInitializeParams{DiskName: "blank-beta", DiskSizeGb: 50, DiskType: dt}, false},
+		{"blank disk missing size and image case", &compute.AttachedDiskInitializeParams{DiskName: "blank-empty", DiskType: dt}, &computeBeta.AttachedDiskInitializeParams{DiskName: "blank-empty-beta", DiskType: dt}, true},
 		{"bad disk name case", &compute.AttachedDiskInitializeParams{DiskName: "bad!", SourceImage: "i", DiskType: dt}, &computeBeta.AttachedDiskInitializeParams{DiskName: "bad!2", SourceImage: "i", DiskType: dt}, true},
 		{"bad dupe disk case", &compute.AttachedDiskInitializeParams{DiskName: "foo", SourceImage: "i", DiskType: dt}, &computeBeta.AttachedDiskInitializeParams{DiskName: "foo-beta", SourceImage: "i", DiskType: dt}, true},
 		{"bad source case", &compute.AttachedDiskInitializeParams{DiskName: "bar", SourceImage: "i2", DiskType: dt}, &computeBeta.AttachedDiskInitializeParams{DiskName: "bar-beta", SourceImage: "i2", DiskType: dt}, true},

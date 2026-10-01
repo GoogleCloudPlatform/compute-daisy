@@ -647,6 +647,7 @@ type computeDisk struct {
 	sourceImage         string
 	autoDelete          bool
 	diskType            string
+	diskSizeGb          int64
 }
 
 func (i *Instance) getComputeDisks() []*computeDisk {
@@ -657,6 +658,7 @@ func (i *Instance) getComputeDisks() []*computeDisk {
 			computeDisk.diskName = d.InitializeParams.DiskName
 			computeDisk.sourceImage = d.InitializeParams.SourceImage
 			computeDisk.diskType = d.InitializeParams.DiskType
+			computeDisk.diskSizeGb = d.InitializeParams.DiskSizeGb
 		}
 		computeDisks = append(computeDisks, &computeDisk)
 	}
@@ -671,6 +673,7 @@ func (i *InstanceBeta) getComputeDisks() []*computeDisk {
 			computeDisk.diskName = d.InitializeParams.DiskName
 			computeDisk.sourceImage = d.InitializeParams.SourceImage
 			computeDisk.diskType = d.InitializeParams.DiskType
+			computeDisk.diskSizeGb = d.InitializeParams.DiskSizeGb
 		}
 		computeDisks = append(computeDisks, &computeDisk)
 	}
@@ -724,8 +727,10 @@ func (ib *InstanceBase) validateDiskInitializeParams(d *computeDisk, ii Instance
 		}
 	}
 
-	if _, err := s.w.images.regUse(d.sourceImage, s); err != nil {
-		errs = addErrs(errs, Errf("cannot create instance: can't use InitializeParams.SourceImage %q: %v", d.sourceImage, err))
+	if d.sourceImage != "" || d.diskSizeGb == 0 {
+		if _, err := s.w.images.regUse(d.sourceImage, s); err != nil {
+			errs = addErrs(errs, Errf("cannot create instance: can't use InitializeParams.SourceImage %q: %v", d.sourceImage, err))
+		}
 	}
 	if !rfc1035Rgx.MatchString(d.diskName) {
 		errs = addErrs(errs, Errf("cannot create instance: bad InitializeParams.DiskName: %q", d.diskName))
