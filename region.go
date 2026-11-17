@@ -19,7 +19,7 @@ import (
 )
 
 func (w *Workflow) regionExists(project, region string) (bool, DError) {
-	return w.zonesCache.resourceExists(func(project string, opts ...daisyCompute.ListCallOption) (interface{}, error) {
+	return w.regionsCache.resourceExists(func(project string, opts ...daisyCompute.ListCallOption) (any, error) {
 		return w.ComputeClient.ListRegions(project)
 	}, project, region)
 }

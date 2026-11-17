@@ -73,7 +73,10 @@ func (a *AttachDisks) validate(ctx context.Context, s *Step) (errs DError) {
 
 		// Ensure disk is in the same project and zone.
 		disk := NamedSubexp(diskURLRgx, dr.link)
-		instance := NamedSubexp(instanceURLRgx, ir.link)
+		instance, zErr := zonalInstanceLink(ir)
+		if zErr != nil {
+			return addErrs(errs, Errf("cannot attach disk: %v", zErr))
+		}
 		if disk["project"] != instance["project"] {
 			errs = addErrs(errs, Errf("cannot attach disk in project %q to instance in project %q: %q", disk["project"], instance["project"], ad.Source))
 		}

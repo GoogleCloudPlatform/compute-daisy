@@ -51,7 +51,10 @@ func (a *DetachDisks) validate(ctx context.Context, s *Step) (errs DError) {
 		}
 		addErrs(errs, err)
 
-		instance := NamedSubexp(instanceURLRgx, ir.link)
+		instance, zErr := zonalInstanceLink(ir)
+		if zErr != nil {
+			return addErrs(errs, Errf("cannot detach disk: %v", zErr))
+		}
 
 		res, isAttached, err := s.w.disks.regUseDeviceName(dd.DeviceName, instance["project"], instance["zone"], instance["instance"], dd.Instance, s)
 		if res == nil {

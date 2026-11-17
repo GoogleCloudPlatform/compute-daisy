@@ -125,7 +125,9 @@ func (r *baseResourceRegistry) get(name string) (*Resource, bool) {
 }
 
 // regCreate registers a Step s as the creator of a resource, res, and identifies the resource by name.
-func (r *baseResourceRegistry) regCreate(name string, res *Resource, s *Step, overWrite bool) DError {
+// skipExistenceCheck skips the GCE lookup for an existing resource at res.link, e.g. when the
+// resource will be overwritten, or when its location (and so its link) isn't known until creation.
+func (r *baseResourceRegistry) regCreate(name string, res *Resource, s *Step, skipExistenceCheck bool) DError {
 	// Check:
 	// - no duplicates known by name
 	r.mx.Lock()
@@ -134,7 +136,7 @@ func (r *baseResourceRegistry) regCreate(name string, res *Resource, s *Step, ov
 		return Errf("cannot create %s %q; already created by step %q", r.typeName, name, res.creator.name)
 	}
 
-	if !overWrite {
+	if !skipExistenceCheck {
 		if exists, err := r.w.resourceExists(res.link); err != nil {
 			return Errf("cannot create %s %q; resource lookup error: %v", r.typeName, name, err)
 		} else if exists {

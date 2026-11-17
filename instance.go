@@ -15,6 +15,7 @@
 package daisy
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 	"net/http"
 	"path"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -37,6 +39,7 @@ const (
 	defaultDiskType         = "pd-standard"
 	diskModeRO              = "READ_ONLY"
 	diskModeRW              = "READ_WRITE"
+	localSSDDiskType        = "local-ssd"
 )
 
 var (
@@ -110,6 +113,51 @@ type InstanceBase struct {
 	SerialPortsToLog []int64 `json:",omitempty"`
 	// AutoSelectDiskType prevents Daisy from defaulting empty InitializeParams.DiskType to pd-standard.
 	AutoSelectDiskType bool `json:",omitempty"`
+	// PlacementRegion, if set (e.g. "us-central1"), creates the instance with
+	// regionInstances.bulkInsert and lets GCE pick any zone in the region that
+	// offers the machine type and has capacity. Zone must be empty; it holds
+	// the chosen zone once the instance is created. Disks must use
+	// InitializeParams, and MachineType, disk types and accelerator types must
+	// be short names. GA Instance only.
+	//
+	// Not supported: AttachDisks, DetachDisks and UpdateInstancesMetadata on
+	// the instance, and Source, AttachDisks and ResizeDisks references to its
+	// InitializeParams disks.
+	//
+	// Limitation: if any error occurs after the bulk insert succeeded (e.g. a
+	// timeout, the refresh of the created instance, or recording its location),
+	// daisy doesn't mark the VM created and won't delete it. Callers that need
+	// guaranteed cleanup should also sweep by label.
+	PlacementRegion string `json:",omitempty"`
+}
+
+// instanceLink returns the partial URL of a zonal instance.
+func instanceLink(project, zone, name string) string {
+	return fmt.Sprintf("projects/%s/zones/%s/instances/%s", project, zone, name)
+}
+
+// isLocalSSDDiskType reports whether diskType, a disk type URL or a short
+// disk type name, is local SSD.
+func isLocalSSDDiskType(diskType string) bool {
+	return diskType == localSSDDiskType || NamedSubexp(diskTypeURLRgx, diskType)["disktype"] == localSSDDiskType
+}
+
+// zonePending reports whether the instance uses PlacementRegion and has an
+// empty link, i.e. its zone isn't known yet. Until creation succeeds, such an
+// instance has an empty Zone and link, and its InitializeParams disks are
+// registered with empty links.
+func (ib *InstanceBase) zonePending() bool {
+	return ib.PlacementRegion != "" && ib.link == ""
+}
+
+// zonalInstanceLink parses the link of an instance resource. It returns an
+// error if the instance has no zone yet, i.e. it uses PlacementRegion and
+// hasn't been created.
+func zonalInstanceLink(res *Resource) (map[string]string, DError) {
+	if res.link == "" {
+		return nil, Errf("instance %q has no zone yet (PlacementRegion)", res.daisyName)
+	}
+	return NamedSubexp(instanceURLRgx, res.link), nil
 }
 
 // Instance is used to create a GCE instance using GA API.
@@ -120,6 +168,12 @@ type Instance struct {
 
 	// Additional metadata to set for the instance.
 	Metadata map[string]string `json:"metadata,omitempty"`
+
+	// bulkDiskNames maps the device name of each InitializeParams disk sent in
+	// a regional bulk insert to the disk's registry name. It's recorded before
+	// the insert because the refreshed instance no longer has InitializeParams,
+	// only each disk's DeviceName and Source.
+	bulkDiskNames map[string]string
 }
 
 // InstanceBeta is used to create a GCE instance using Beta API.
@@ -173,7 +227,197 @@ func (i *Instance) appendComputeMetadata(key string, value *string) {
 }
 
 func (i *Instance) create(cc daisyCompute.Client) error {
+	if i.zonePending() {
+		return i.bulkCreate(cc, i.PlacementRegion)
+	}
 	return cc.CreateInstance(i.Project, i.Zone, &i.Instance)
+}
+
+// bulkInstanceInserter is implemented by compute clients that support
+// regionInstances.bulkInsert. It's not part of daisyCompute.Client so that
+// existing Client implementations keep compiling.
+type bulkInstanceInserter interface {
+	BulkInsertInstances(project, region string, r *compute.BulkInsertInstanceResource) (*compute.Operation, error)
+}
+
+// bulkCreate creates the instance in region with regionInstances.bulkInsert
+// and lets GCE pick its zone. On success it sets Zone to the chosen zone and
+// refreshes Instance from GCE. The request is rebuilt on every call so that
+// retries pick up changes to Instance, such as removed access configs.
+func (i *Instance) bulkCreate(cc daisyCompute.Client, region string) error {
+	// BulkInsertInstances is optional on daisyCompute.Client. Verify support
+	// before converting the instance spec.
+	bi, ok := cc.(bulkInstanceInserter)
+	if !ok {
+		return fmt.Errorf("instance %q: compute client %T does not support regional bulk insert", i.Name, cc)
+	}
+
+	// Bulk insert takes InstanceProperties rather than Instance (stripping
+	// Name, Zone, and InitializeParams.DiskName). Converting here also catches
+	// fields regional bulk insert does not support before mutating i.
+	props, err := instanceProperties(&i.Instance)
+	if err != nil {
+		return err
+	}
+
+	// Map DeviceName to Daisy's registry disk name before GetInstance replaces
+	// i.Instance and drops InitializeParams. Bulk insert names disks itself, so
+	// finalizeLocation uses this map to link GCE's disk URLs back to the disk
+	// registry. Skip local SSDs because scratch disks are not registered.
+	diskNames := map[string]string{}
+	for _, d := range i.Disks {
+		if d.InitializeParams != nil && !isLocalSSDDiskType(d.InitializeParams.DiskType) {
+			diskNames[d.DeviceName] = d.InitializeParams.DiskName
+		}
+	}
+	i.bulkDiskNames = diskNames
+
+	req := &compute.BulkInsertInstanceResource{
+		// Request a single VM and require it to be created (all-or-nothing).
+		Count:              1,
+		MinCount:           1,
+		InstanceProperties: props,
+		// PerInstanceProperties keys assign i.Name verbatim instead of using
+		// NamePattern. The value is empty because all settings are in
+		// InstanceProperties.
+		PerInstanceProperties: map[string]compute.BulkInsertInstanceResourcePerInstanceProperties{
+			i.Name: {},
+		},
+		// Omit Locations so GCE considers every zone in the region.
+		// ANY_SINGLE_ZONE picks one zone based on capacity, quotas, and
+		// reservations.
+		LocationPolicy: &compute.LocationPolicy{TargetShape: "ANY_SINGLE_ZONE"},
+	}
+
+	// Submit the regional bulk insert and wait for completion. The returned
+	// operation's per-location metadata is how GCE reports the chosen zone.
+	op, err := bi.BulkInsertInstances(i.Project, region, req)
+	if err != nil {
+		return err
+	}
+	zone, err := bulkInsertZone(op)
+	if err != nil {
+		return fmt.Errorf("instance %q: %v", i.Name, err)
+	}
+
+	// Fetch the created instance to match CreateInstance's refresh behavior
+	// and obtain each disk's GCE-assigned Source URL for finalizeLocation.
+	createdInstance, err := cc.GetInstance(i.Project, zone, i.Name)
+	if err != nil {
+		return err
+	}
+
+	// Set i.Zone after copying createdInstance. GetInstance returns Zone as a
+	// full URL, whereas Daisy expects the short zone name (for example, in
+	// finalizeLocation). Deferring both writes until after GetInstance also
+	// leaves i.Zone empty on error.
+	i.Instance = *createdInstance
+	i.Zone = zone
+	return nil
+}
+
+// instanceProperties converts ci, without its Name and Zone, to the
+// InstanceProperties of a bulk insert request. A set field that
+// InstanceProperties doesn't have is an error naming the field. The JSON round
+// trip doesn't carry ForceSendFields or NullFields over.
+//
+// InitializeParams.DiskName is cleared: bulk insert rejects named disks and
+// names them itself. finalizeLocation takes the real disk links from the
+// created instance, matched by DeviceName.
+func instanceProperties(ci *compute.Instance) (*compute.InstanceProperties, error) {
+	c := *ci
+	c.Name = ""
+	c.Zone = ""
+	b, err := json.Marshal(c)
+	if err != nil {
+		return nil, fmt.Errorf("cannot convert instance %q for bulk insert: %v", ci.Name, err)
+	}
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	props := &compute.InstanceProperties{}
+	if err := dec.Decode(props); err != nil {
+		return nil, fmt.Errorf("cannot convert instance %q for bulk insert, regional bulk insert doesn't support this field: %v", ci.Name, err)
+	}
+	// props was decoded fresh, so this doesn't modify ci.
+	for _, d := range props.Disks {
+		if d.InitializeParams != nil {
+			d.InitializeParams.DiskName = ""
+		}
+	}
+	return props, nil
+}
+
+// bulkInsertZone returns the zone a single-instance bulk insert created its
+// instance in.
+func bulkInsertZone(op *compute.Operation) (string, error) {
+	if op == nil {
+		return "", fmt.Errorf("bulk insert returned no operation")
+	}
+	if op.Error != nil {
+		var operrs string
+		for _, operr := range op.Error.Errors {
+			operrs += fmt.Sprintf("\nCode: %s\nMessage: %s", operr.Code, operr.Message)
+		}
+		return "", fmt.Errorf("bulk insert operation %q failed:%s", op.Name, operrs)
+	}
+	if op.InstancesBulkInsertOperationMetadata == nil {
+		return "", fmt.Errorf("bulk insert operation %q has no instancesBulkInsertOperationMetadata", op.Name)
+	}
+	var created []string
+	for loc, st := range op.InstancesBulkInsertOperationMetadata.PerLocationStatus {
+		if st.CreatedVmCount != 0 {
+			created = append(created, loc)
+		}
+	}
+	if len(created) != 1 {
+		sort.Strings(created)
+		return "", fmt.Errorf("bulk insert operation %q: want exactly one location with a created VM, got %q", op.Name, created)
+	}
+	loc := created[0]
+	if n := op.InstancesBulkInsertOperationMetadata.PerLocationStatus[loc].CreatedVmCount; n != 1 {
+		return "", fmt.Errorf("bulk insert operation %q: want 1 created VM in %q, got %d", op.Name, loc, n)
+	}
+	zone := strings.TrimPrefix(loc, "zones/")
+	if zone == loc || !rfc1035Rgx.MatchString(zone) {
+		return "", fmt.Errorf("bulk insert operation %q: unexpected location %q, want zones/<zone>", op.Name, loc)
+	}
+	return zone, nil
+}
+
+// finalizeLocation is called once a bulk-inserted instance has been created in
+// its chosen zone. It sets the instance link and the registry links of its
+// InitializeParams disks. On error nothing is changed.
+func (i *Instance) finalizeLocation(w *Workflow) DError {
+	sources := map[string]string{}
+	for _, d := range i.Disks {
+		sources[d.DeviceName] = d.Source
+	}
+	type diskLink struct {
+		res  *Resource
+		link string
+	}
+	var diskLinks []diskLink
+	for deviceName, diskName := range i.bulkDiskNames {
+		src, ok := sources[deviceName]
+		if !ok || src == "" {
+			return Errf("instance %q (zone %q): created instance has no disk with device name %q", i.daisyName, i.Zone, deviceName)
+		}
+		idx := strings.Index(src, "projects/")
+		if idx < 0 || !diskURLRgx.MatchString(src[idx:]) {
+			return Errf("instance %q (zone %q): unexpected source %q for disk with device name %q", i.daisyName, i.Zone, src, deviceName)
+		}
+		res, ok := w.disks.get(diskName)
+		if !ok {
+			return Errf("instance %q (zone %q): disk %q not found in registry", i.daisyName, i.Zone, diskName)
+		}
+		diskLinks = append(diskLinks, diskLink{res: res, link: src[idx:]})
+	}
+
+	for _, dl := range diskLinks {
+		dl.res.link = dl.link
+	}
+	i.link = instanceLink(i.Project, i.Zone, i.RealName)
+	return nil
 }
 
 func (i *Instance) delete(cc daisyCompute.Client, deleteDisk bool) error {
@@ -223,8 +467,7 @@ func (i *Instance) register(name string, s *Step, ir *instanceRegistry, errs DEr
 	for _, d := range i.Disks {
 		diskName := d.Source
 		if d.InitializeParams != nil {
-			parts := NamedSubexp(diskTypeURLRgx, d.InitializeParams.DiskType)
-			if parts["disktype"] == "local-ssd" {
+			if isLocalSSDDiskType(d.InitializeParams.DiskType) {
 				continue
 			}
 			diskName = d.InitializeParams.DiskName
@@ -348,9 +591,17 @@ func (i *InstanceBeta) register(name string, s *Step, ir *instanceRegistry, errs
 }
 
 func (ib *InstanceBase) populate(ctx context.Context, ii InstanceInterface, s *Step) DError {
-	name, zone, errs := ib.Resource.populateWithZone(ctx, s, ii.getName(), ii.getZone())
-	ii.setName(name)
-	ii.setZone(zone)
+	var errs DError
+	if ib.zonePending() {
+		// The zone is chosen by GCE at creation; don't inherit the workflow zone.
+		errs = ib.Resource.populateHelper(ctx, s, ii.getName())
+		ii.setName(ib.RealName)
+	} else {
+		var name, zone string
+		name, zone, errs = ib.Resource.populateWithZone(ctx, s, ii.getName(), ii.getZone())
+		ii.setName(name)
+		ii.setZone(zone)
+	}
 
 	ii.setDescription(strOr(ii.getDescription(), fmt.Sprintf("Instance created by Daisy in workflow %q on behalf of %s.", s.w.Name, s.w.username)))
 	errs = addErrs(errs, ib.populateSerialPortsToLog())
@@ -359,7 +610,9 @@ func (ib *InstanceBase) populate(ctx context.Context, ii InstanceInterface, s *S
 	errs = addErrs(errs, ib.populateMetadata(ii, s.w))
 	errs = addErrs(errs, ii.populateNetworks())
 	errs = addErrs(errs, ii.populateScopes())
-	ib.link = fmt.Sprintf("projects/%s/zones/%s/instances/%s", ib.Project, ii.getZone(), ii.getName())
+	if !ib.zonePending() {
+		ib.link = instanceLink(ib.Project, ii.getZone(), ii.getName())
+	}
 
 	if machineImageURLRgx.MatchString(ii.getSourceMachineImage()) {
 		ii.setSourceMachineImage(extendPartialURL(ii.getSourceMachineImage(), ib.Project))
@@ -398,15 +651,15 @@ func (i *Instance) populateDisks(w *Workflow) DError {
 			if !i.AutoSelectDiskType {
 				p.DiskType = strOr(p.DiskType, defaultDiskType)
 			}
-			if p.DiskType != "" {
+			// A PlacementRegion instance keeps the short name: its zone isn't known yet.
+			if p.DiskType != "" && !i.zonePending() {
 				if diskTypeURLRgx.MatchString(p.DiskType) {
 					p.DiskType = extendPartialURL(p.DiskType, i.Project)
 				} else {
 					p.DiskType = fmt.Sprintf("projects/%s/zones/%s/diskTypes/%s", i.Project, i.Zone, p.DiskType)
 				}
 			}
-			parts := NamedSubexp(diskTypeURLRgx, p.DiskType)
-			if parts["disktype"] == "local-ssd" {
+			if isLocalSSDDiskType(p.DiskType) {
 				d.AutoDelete = true
 				d.Type = "SCRATCH"
 				p.DiskName = ""
@@ -497,6 +750,10 @@ func (ib *InstanceBase) populateMachineType(ii InstanceInterface) DError {
 	}
 
 	ii.setMachineType(strOr(ii.getMachineType(), "n1-standard-1"))
+	if ib.zonePending() {
+		// Bulk insert takes a short machine type name; the zone isn't known yet.
+		return nil
+	}
 	if machineTypeURLRegex.MatchString(ii.getMachineType()) {
 		ii.setMachineType(extendPartialURL(ii.getMachineType(), ib.Project))
 	} else {
@@ -615,15 +872,42 @@ func (i *InstanceBeta) populateScopes() DError {
 
 func (ib *InstanceBase) validate(ctx context.Context, ii InstanceInterface, s *Step) DError {
 	pre := fmt.Sprintf("cannot create instance %q", ib.daisyName)
-	errs := ib.Resource.validateWithZone(ctx, s, ii.getZone(), pre)
+	var errs DError
+	if ib.zonePending() {
+		errs = ib.validatePlacementRegion(ctx, ii, s, pre)
+	} else {
+		errs = ib.Resource.validateWithZone(ctx, s, ii.getZone(), pre)
+	}
 	errs = addErrs(errs, ib.validateSerialPortsToLog())
 	errs = addErrs(errs, ib.validateDisks(ii, s))
 	errs = addErrs(errs, ib.validateMachineType(ii, s.w))
 	errs = addErrs(errs, ii.validateNetworks(s))
 	errs = addErrs(errs, ib.validateSourceMachineImage(ii, s))
 
-	// Register creation.
-	errs = addErrs(errs, s.w.instances.regCreate(ib.daisyName, &ib.Resource, ib.OverWrite, s))
+	// Register creation. A zone-pending instance has no link to look up yet;
+	// its name already carries the workflow ID.
+	errs = addErrs(errs, s.w.instances.regCreate(ib.daisyName, &ib.Resource, ib.OverWrite || ib.zonePending(), s))
+	return errs
+}
+
+// validatePlacementRegion replaces the zone checks for a PlacementRegion instance.
+func (ib *InstanceBase) validatePlacementRegion(ctx context.Context, ii InstanceInterface, s *Step, pre string) DError {
+	errs := ib.Resource.validateWithRegion(ctx, s, ib.PlacementRegion, pre)
+	if ii.getZone() != "" {
+		errs = addErrs(errs, Errf("%s: Zone and PlacementRegion are mutually exclusive", pre))
+	}
+	if i, ok := ii.(*Instance); !ok {
+		errs = addErrs(errs, Errf("%s: PlacementRegion is not supported for InstanceBeta", pre))
+	} else {
+		for _, a := range i.GuestAccelerators {
+			if a != nil && !rfc1035Rgx.MatchString(a.AcceleratorType) {
+				errs = addErrs(errs, Errf("%s: bad GuestAccelerators.AcceleratorType: %q, PlacementRegion requires a short accelerator type name", pre, a.AcceleratorType))
+			}
+		}
+	}
+	if ib.OverWrite {
+		errs = addErrs(errs, Errf("%s: OverWrite is not supported with PlacementRegion", pre))
+	}
 	return errs
 }
 
@@ -703,6 +987,8 @@ func (ib *InstanceBase) validateDisks(ii InstanceInterface, s *Step) (errs DErro
 		}
 		if d.hasInitializeParams {
 			errs = addErrs(errs, ib.validateDiskInitializeParams(d, ii, s))
+		} else if ib.zonePending() {
+			errs = addErrs(errs, Errf("cannot create instance %q: PlacementRegion requires disks to use InitializeParams, got disk.source %q", ib.daisyName, d.source))
 		} else {
 			errs = addErrs(errs, ib.validateDiskSource(d.source, ii, s))
 		}
@@ -711,7 +997,16 @@ func (ib *InstanceBase) validateDisks(ii InstanceInterface, s *Step) (errs DErro
 }
 
 func (ib *InstanceBase) validateDiskInitializeParams(d *computeDisk, ii InstanceInterface, s *Step) (errs DError) {
-	if d.diskType != "" {
+	if ib.zonePending() {
+		// Bulk insert takes a short disk type name; populate already detected
+		// local SSD.
+		if d.diskType == localSSDDiskType {
+			return
+		}
+		if d.diskType != "" && !rfc1035Rgx.MatchString(d.diskType) {
+			errs = addErrs(errs, Errf("cannot create instance: bad InitializeParams.DiskType: %q, PlacementRegion requires a short disk type name", d.diskType))
+		}
+	} else if d.diskType != "" {
 		parts := NamedSubexp(diskTypeURLRgx, d.diskType)
 		if parts["project"] != ib.Project {
 			errs = addErrs(errs, Errf("cannot create instance in project %q with InitializeParams.DiskType in project %q", ib.Project, parts["project"]))
@@ -731,9 +1026,13 @@ func (ib *InstanceBase) validateDiskInitializeParams(d *computeDisk, ii Instance
 		errs = addErrs(errs, Errf("cannot create instance: bad InitializeParams.DiskName: %q", d.diskName))
 	}
 	link := fmt.Sprintf("projects/%s/zones/%s/disks/%s", ib.Project, ii.getZone(), d.diskName)
+	if ib.zonePending() {
+		// The link is set once the instance is created in its chosen zone.
+		link = ""
+	}
 	// Set cleanup if not being autodeleted.
 	r := &Resource{RealName: d.diskName, link: link, NoCleanup: d.autoDelete}
-	errs = addErrs(errs, s.w.disks.regCreate(d.diskName, r, s, false))
+	errs = addErrs(errs, s.w.disks.regCreate(d.diskName, r, s, ib.zonePending()))
 
 	return
 }
@@ -758,6 +1057,14 @@ func (ib *InstanceBase) validateDiskSource(diskSource string, ii InstanceInterfa
 
 func (ib *InstanceBase) validateMachineType(ii InstanceInterface, w *Workflow) (errs DError) {
 	if ii.getSourceMachineImage() != "" && ii.getMachineType() == "" {
+		return
+	}
+
+	if ib.zonePending() {
+		// Bulk insert takes a short name; GCE checks that some zone offers it.
+		if !rfc1035Rgx.MatchString(ii.getMachineType()) {
+			errs = addErrs(errs, Errf("can't create instance: bad MachineType: %q, PlacementRegion requires a short machine type name", ii.getMachineType()))
+		}
 		return
 	}
 
@@ -839,7 +1146,10 @@ func newInstanceRegistry(w *Workflow) *instanceRegistry {
 var SleepFn = time.Sleep
 
 func (ir *instanceRegistry) deleteFn(res *Resource) DError {
-	m := NamedSubexp(instanceURLRgx, res.link)
+	m, dErr := zonalInstanceLink(res)
+	if dErr != nil {
+		return dErr
+	}
 	for i := 1; i < 4; i++ {
 		if _, err := ir.w.ComputeClient.GetInstance(m["project"], m["zone"], m["instance"]); err != nil {
 			// Can't remove an instance that was not even yet created!
@@ -874,9 +1184,9 @@ func (ir *instanceRegistry) stopFn(res *Resource) DError {
 	return newErr("failed to stop instance", err)
 }
 
-func (ir *instanceRegistry) regCreate(name string, res *Resource, overWrite bool, s *Step) DError {
+func (ir *instanceRegistry) regCreate(name string, res *Resource, skipExistenceCheck bool, s *Step) DError {
 	// Base creation logic.
-	errs := ir.baseResourceRegistry.regCreate(name, res, s, overWrite)
+	errs := ir.baseResourceRegistry.regCreate(name, res, s, skipExistenceCheck)
 
 	// Find the Instance responsible for this.
 	for _, i := range (*s.CreateInstances).Instances {
