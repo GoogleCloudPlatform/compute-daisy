@@ -15,6 +15,7 @@
 package daisy
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 	"net/http"
 	"path"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -37,6 +39,7 @@ const (
 	defaultDiskType         = "pd-standard"
 	diskModeRO              = "READ_ONLY"
 	diskModeRW              = "READ_WRITE"
+	localSSDDiskType        = "local-ssd"
 )
 
 var (
@@ -112,6 +115,17 @@ type InstanceBase struct {
 	AutoSelectDiskType bool `json:",omitempty"`
 }
 
+// instanceLink returns the partial URL of a zonal instance.
+func instanceLink(project, zone, name string) string {
+	return fmt.Sprintf("projects/%s/zones/%s/instances/%s", project, zone, name)
+}
+
+// isLocalSSDDiskType reports whether diskType, a disk type URL or a short
+// disk type name, is local SSD.
+func isLocalSSDDiskType(diskType string) bool {
+	return diskType == localSSDDiskType || NamedSubexp(diskTypeURLRgx, diskType)["disktype"] == localSSDDiskType
+}
+
 // Instance is used to create a GCE instance using GA API.
 // By default, output of serial port 1 will be streamed to the daisy logs directory.
 type Instance struct {
@@ -120,6 +134,12 @@ type Instance struct {
 
 	// Additional metadata to set for the instance.
 	Metadata map[string]string `json:"metadata,omitempty"`
+
+	// bulkDiskNames maps the device name of each InitializeParams disk sent in
+	// a regional bulk insert to the disk's registry name. It's recorded before
+	// the insert because the refreshed instance no longer has InitializeParams,
+	// only each disk's DeviceName and Source.
+	bulkDiskNames map[string]string
 }
 
 // InstanceBeta is used to create a GCE instance using Beta API.
@@ -174,6 +194,193 @@ func (i *Instance) appendComputeMetadata(key string, value *string) {
 
 func (i *Instance) create(cc daisyCompute.Client) error {
 	return cc.CreateInstance(i.Project, i.Zone, &i.Instance)
+}
+
+// bulkInstanceInserter is implemented by compute clients that support
+// regionInstances.bulkInsert. It's not part of daisyCompute.Client so that
+// existing Client implementations keep compiling.
+type bulkInstanceInserter interface {
+	BulkInsertInstances(project, region string, r *compute.BulkInsertInstanceResource) (*compute.Operation, error)
+}
+
+// bulkCreate creates the instance in region with regionInstances.bulkInsert
+// and lets GCE pick its zone. On success it sets Zone to the chosen zone and
+// refreshes Instance from GCE. The request is rebuilt on every call so that
+// retries pick up changes to Instance, such as removed access configs.
+func (i *Instance) bulkCreate(cc daisyCompute.Client, region string) error {
+	// BulkInsertInstances is optional on daisyCompute.Client. Verify support
+	// before converting the instance spec.
+	bi, ok := cc.(bulkInstanceInserter)
+	if !ok {
+		return fmt.Errorf("instance %q: compute client %T does not support regional bulk insert", i.Name, cc)
+	}
+
+	// Bulk insert takes InstanceProperties rather than Instance (stripping
+	// Name, Zone, and InitializeParams.DiskName). Converting here also catches
+	// fields regional bulk insert does not support before mutating i.
+	props, err := instanceProperties(&i.Instance)
+	if err != nil {
+		return err
+	}
+
+	// Map DeviceName to Daisy's registry disk name before GetInstance replaces
+	// i.Instance and drops InitializeParams. Bulk insert names disks itself, so
+	// finalizeLocation uses this map to link GCE's disk URLs back to the disk
+	// registry. Skip local SSDs because scratch disks are not registered.
+	diskNames := map[string]string{}
+	for _, d := range i.Disks {
+		if d.InitializeParams != nil && !isLocalSSDDiskType(d.InitializeParams.DiskType) {
+			diskNames[d.DeviceName] = d.InitializeParams.DiskName
+		}
+	}
+	i.bulkDiskNames = diskNames
+
+	req := &compute.BulkInsertInstanceResource{
+		// Request a single VM and require it to be created (all-or-nothing).
+		Count:              1,
+		MinCount:           1,
+		InstanceProperties: props,
+		// PerInstanceProperties keys assign i.Name verbatim instead of using
+		// NamePattern. The value is empty because all settings are in
+		// InstanceProperties.
+		PerInstanceProperties: map[string]compute.BulkInsertInstanceResourcePerInstanceProperties{
+			i.Name: {},
+		},
+		// Omit Locations so GCE considers every zone in the region.
+		// ANY_SINGLE_ZONE picks one zone based on capacity, quotas, and
+		// reservations.
+		LocationPolicy: &compute.LocationPolicy{TargetShape: "ANY_SINGLE_ZONE"},
+	}
+
+	// Submit the regional bulk insert and wait for completion. The returned
+	// operation's per-location metadata is how GCE reports the chosen zone.
+	op, err := bi.BulkInsertInstances(i.Project, region, req)
+	if err != nil {
+		return err
+	}
+	zone, err := bulkInsertZone(op)
+	if err != nil {
+		return fmt.Errorf("instance %q: %v", i.Name, err)
+	}
+
+	// Fetch the created instance to match CreateInstance's refresh behavior
+	// and obtain each disk's GCE-assigned Source URL for finalizeLocation.
+	createdInstance, err := cc.GetInstance(i.Project, zone, i.Name)
+	if err != nil {
+		return err
+	}
+
+	// Set i.Zone after copying createdInstance. GetInstance returns Zone as a
+	// full URL, whereas Daisy expects the short zone name (for example, in
+	// finalizeLocation). Deferring both writes until after GetInstance also
+	// leaves i.Zone empty on error.
+	i.Instance = *createdInstance
+	i.Zone = zone
+	return nil
+}
+
+// instanceProperties converts ci, without its Name and Zone, to the
+// InstanceProperties of a bulk insert request. A set field that
+// InstanceProperties doesn't have is an error naming the field. The JSON round
+// trip doesn't carry ForceSendFields or NullFields over.
+//
+// InitializeParams.DiskName is cleared: bulk insert rejects named disks and
+// names them itself. finalizeLocation takes the real disk links from the
+// created instance, matched by DeviceName.
+func instanceProperties(ci *compute.Instance) (*compute.InstanceProperties, error) {
+	c := *ci
+	c.Name = ""
+	c.Zone = ""
+	b, err := json.Marshal(c)
+	if err != nil {
+		return nil, fmt.Errorf("cannot convert instance %q for bulk insert: %v", ci.Name, err)
+	}
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	props := &compute.InstanceProperties{}
+	if err := dec.Decode(props); err != nil {
+		return nil, fmt.Errorf("cannot convert instance %q for bulk insert, regional bulk insert doesn't support this field: %v", ci.Name, err)
+	}
+	// props was decoded fresh, so this doesn't modify ci.
+	for _, d := range props.Disks {
+		if d.InitializeParams != nil {
+			d.InitializeParams.DiskName = ""
+		}
+	}
+	return props, nil
+}
+
+// bulkInsertZone returns the zone a single-instance bulk insert created its
+// instance in.
+func bulkInsertZone(op *compute.Operation) (string, error) {
+	if op == nil {
+		return "", fmt.Errorf("bulk insert returned no operation")
+	}
+	if op.Error != nil {
+		var operrs string
+		for _, operr := range op.Error.Errors {
+			operrs += fmt.Sprintf("\nCode: %s\nMessage: %s", operr.Code, operr.Message)
+		}
+		return "", fmt.Errorf("bulk insert operation %q failed:%s", op.Name, operrs)
+	}
+	if op.InstancesBulkInsertOperationMetadata == nil {
+		return "", fmt.Errorf("bulk insert operation %q has no instancesBulkInsertOperationMetadata", op.Name)
+	}
+	var created []string
+	for loc, st := range op.InstancesBulkInsertOperationMetadata.PerLocationStatus {
+		if st.CreatedVmCount != 0 {
+			created = append(created, loc)
+		}
+	}
+	if len(created) != 1 {
+		sort.Strings(created)
+		return "", fmt.Errorf("bulk insert operation %q: want exactly one location with a created VM, got %q", op.Name, created)
+	}
+	loc := created[0]
+	if n := op.InstancesBulkInsertOperationMetadata.PerLocationStatus[loc].CreatedVmCount; n != 1 {
+		return "", fmt.Errorf("bulk insert operation %q: want 1 created VM in %q, got %d", op.Name, loc, n)
+	}
+	zone := strings.TrimPrefix(loc, "zones/")
+	if zone == loc || !rfc1035Rgx.MatchString(zone) {
+		return "", fmt.Errorf("bulk insert operation %q: unexpected location %q, want zones/<zone>", op.Name, loc)
+	}
+	return zone, nil
+}
+
+// finalizeLocation is called once a bulk-inserted instance has been created in
+// its chosen zone. It sets the instance link and the registry links of its
+// InitializeParams disks. On error nothing is changed.
+func (i *Instance) finalizeLocation(w *Workflow) DError {
+	sources := map[string]string{}
+	for _, d := range i.Disks {
+		sources[d.DeviceName] = d.Source
+	}
+	type diskLink struct {
+		res  *Resource
+		link string
+	}
+	var diskLinks []diskLink
+	for deviceName, diskName := range i.bulkDiskNames {
+		src, ok := sources[deviceName]
+		if !ok || src == "" {
+			return Errf("instance %q (zone %q): created instance has no disk with device name %q", i.daisyName, i.Zone, deviceName)
+		}
+		idx := strings.Index(src, "projects/")
+		if idx < 0 || !diskURLRgx.MatchString(src[idx:]) {
+			return Errf("instance %q (zone %q): unexpected source %q for disk with device name %q", i.daisyName, i.Zone, src, deviceName)
+		}
+		res, ok := w.disks.get(diskName)
+		if !ok {
+			return Errf("instance %q (zone %q): disk %q not found in registry", i.daisyName, i.Zone, diskName)
+		}
+		diskLinks = append(diskLinks, diskLink{res: res, link: src[idx:]})
+	}
+
+	for _, dl := range diskLinks {
+		dl.res.link = dl.link
+	}
+	i.link = instanceLink(i.Project, i.Zone, i.RealName)
+	return nil
 }
 
 func (i *Instance) delete(cc daisyCompute.Client, deleteDisk bool) error {
