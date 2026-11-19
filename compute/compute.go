@@ -1087,6 +1087,25 @@ func (c *client) CreateInstance(project, zone string, i *compute.Instance) error
 	return nil
 }
 
+// BulkInsertInstances creates instances with regionInstances.bulkInsert, waits
+// for the regional operation, and returns it (re-read with
+// RegionOperations.Get so its metadata is populated).
+//
+// It is not part of the Client interface, so that existing Client
+// implementations keep compiling; callers type-assert for it.
+func (c *client) BulkInsertInstances(project, region string, r *compute.BulkInsertInstanceResource) (*compute.Operation, error) {
+	op, err := c.Retry(c.raw.RegionInstances.BulkInsert(project, region, r).Do)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
+		return nil, err
+	}
+
+	return c.Retry(c.raw.RegionOperations.Get(project, region, op.Name).Do)
+}
+
 // CreateInstanceAlpha creates a GCE image using Alpha API.
 func (c *client) CreateInstanceAlpha(project, zone string, i *computeAlpha.Instance) error {
 	op, err := c.RetryAlpha(c.rawAlpha.Instances.Insert(project, zone, i).Do)

@@ -204,6 +204,21 @@ func (ci *CreateInstances) run(ctx context.Context, s *Step) DError {
 			}
 		}
 
+		// A PlacementRegion instance only now knows its zone. Record its location
+		// before marking it created, so that cleanup deletes it in that zone.
+		if ib.zonePending() {
+			// Defensive: validate rejects PlacementRegion on InstanceBeta.
+			i, ok := ii.(*Instance)
+			if !ok {
+				eChan <- Errf("failed to create instances: PlacementRegion is only supported for GA instances")
+				return
+			}
+			if err := i.finalizeLocation(w); err != nil {
+				eChan <- err
+				return
+			}
+		}
+
 		ib.createdInWorkflow = true
 		for _, port := range ib.SerialPortsToLog {
 			go logSerialOutput(ctx, s, ii, ib, port, 3*time.Second)

@@ -53,7 +53,10 @@ func (c *UpdateInstancesMetadata) validate(ctx context.Context, s *Step) (errs D
 		addErrs(errs, err)
 
 		// Set instance project and zone.
-		instance := NamedSubexp(instanceURLRgx, ir.link)
+		instance, zErr := zonalInstanceLink(ir)
+		if zErr != nil {
+			return addErrs(errs, Errf("cannot set metadata: %v", zErr))
+		}
 		sm.project = instance["project"]
 		sm.zone = instance["zone"]
 	}
