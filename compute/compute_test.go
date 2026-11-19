@@ -629,3 +629,50 @@ func TestSuspendResume(t *testing.T) {
 		t.Fatalf("error running Resume: %v", err)
 	}
 }
+
+func TestBulkInsertInstances(t *testing.T) {
+	opPath := fmt.Sprintf("/projects/%s/regions/%s/operations/op-1", testProject, testRegion)
+	var got []string
+	var gotReq compute.BulkInsertInstanceResource
+	svr, c, err := NewTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, r.Method+" "+r.URL.Path)
+		switch {
+		case r.Method == "POST" && r.URL.Path == fmt.Sprintf("/projects/%s/regions/%s/instances/bulkInsert", testProject, testRegion):
+			if err := json.NewDecoder(r.Body).Decode(&gotReq); err != nil {
+				t.Errorf("decoding bulkInsert request: %v", err)
+			}
+			fmt.Fprint(w, `{"name":"op-1","status":"RUNNING"}`)
+		case r.Method == "POST" && r.URL.Path == opPath+"/wait":
+			fmt.Fprint(w, `{"name":"op-1","status":"DONE"}`)
+		case r.Method == "GET" && r.URL.Path == opPath:
+			fmt.Fprintf(w, `{"name":"op-1","status":"DONE","instancesBulkInsertOperationMetadata":{"perLocationStatus":{"zones/%s":{"createdVmCount":1}}}}`, testZone)
+		default:
+			w.WriteHeader(500)
+			fmt.Fprintln(w, "URL and Method not recognized:", r.Method, r.URL)
+		}
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer svr.Close()
+
+	req := &compute.BulkInsertInstanceResource{Count: 1, MinCount: 1, LocationPolicy: &compute.LocationPolicy{TargetShape: "ANY_SINGLE_ZONE"}}
+	op, err := c.BulkInsertInstances(testProject, testRegion, req)
+	if err != nil {
+		t.Fatalf("BulkInsertInstances: %v", err)
+	}
+	wantCalls := []string{
+		fmt.Sprintf("POST /projects/%s/regions/%s/instances/bulkInsert", testProject, testRegion),
+		"POST " + opPath + "/wait",
+		"GET " + opPath,
+	}
+	if !reflect.DeepEqual(got, wantCalls) {
+		t.Errorf("requests = %q, want %q", got, wantCalls)
+	}
+	if gotReq.Count != 1 || gotReq.LocationPolicy == nil || gotReq.LocationPolicy.TargetShape != "ANY_SINGLE_ZONE" {
+		t.Errorf("request body = %+v, want the request passed in", gotReq)
+	}
+	if op.InstancesBulkInsertOperationMetadata == nil || op.InstancesBulkInsertOperationMetadata.PerLocationStatus["zones/"+testZone].CreatedVmCount != 1 {
+		t.Errorf("returned operation = %+v, want the metadata from RegionOperations.Get", op)
+	}
+}
