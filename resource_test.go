@@ -16,7 +16,12 @@ package daisy
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"strings"
 	"testing"
+
+	daisyCompute "github.com/GoogleCloudPlatform/compute-daisy/compute"
 )
 
 func TestExtendPartialURL(t *testing.T) {
@@ -130,5 +135,35 @@ func TestResourceValidateWithZone(t *testing.T) {
 		} else if !tt.wantErr && err != nil {
 			t.Errorf("%s: unexpected error: %v", tt.desc, err)
 		}
+	}
+}
+
+func TestRegionExistsAfterZoneExists(t *testing.T) {
+	ts, c, err := daisyCompute.NewTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/regions"):
+			fmt.Fprintf(w, `{"items":[{"name":%q}]}`, testRegion)
+		case strings.HasSuffix(r.URL.Path, "/zones"):
+			fmt.Fprintf(w, `{"items":[{"name":%q}]}`, testZone)
+		default:
+			http.Error(w, "unexpected request: "+r.URL.String(), http.StatusBadRequest)
+		}
+	}))
+	if err != nil {
+		t.Fatalf("daisyCompute.NewTestClient() failed: %v", err)
+	}
+	defer ts.Close()
+	w := New()
+	w.ComputeClient = c
+
+	// Zones are looked up first, as workflow validation does when Zone is set.
+	if exists, err := w.zoneExists(testProject, testZone); err != nil || !exists {
+		t.Errorf("zoneExists(%q) = %v, %v; want true, nil", testZone, exists, err)
+	}
+	if exists, err := w.regionExists(testProject, testRegion); err != nil || !exists {
+		t.Errorf("regionExists(%q) = %v, %v; want true, nil", testRegion, exists, err)
+	}
+	if exists, err := w.regionExists(testProject, testZone); err != nil || exists {
+		t.Errorf("regionExists(%q) = %v, %v; want false, nil", testZone, exists, err)
 	}
 }
