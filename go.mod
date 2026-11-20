@@ -5,15 +5,15 @@ go 1.26.0
 require (
 	cloud.google.com/go/compute/metadata v0.10.0
 	cloud.google.com/go/logging v1.21.1
-	cloud.google.com/go/storage v1.67.1
+	cloud.google.com/go/storage v1.70.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/google/uuid v1.6.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/stretchr/testify v1.12.1
-	golang.org/x/oauth2 v0.37.0
-	google.golang.org/api v0.304.0
+	golang.org/x/oauth2 v0.38.0
+	google.golang.org/api v0.307.0
 	google.golang.org/genproto v0.0.0-20261026165753-2ffab32bce7e
-	google.golang.org/grpc v1.84.0
+	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
 )
 
@@ -30,7 +30,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.61.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2 // indirect
-	github.com/envoyproxy/go-control-plane/envoy v1.39.0 // indirect
+	github.com/envoyproxy/go-control-plane/envoy v1.39.1-0.20260819172001-e6e3fd93e4be // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.3.3 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.7 // indirect
