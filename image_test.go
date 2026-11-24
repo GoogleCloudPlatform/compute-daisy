@@ -16,14 +16,18 @@ package daisy
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strconv"
 	"testing"
 
+	daisyCompute "github.com/GoogleCloudPlatform/compute-daisy/compute"
 	computeAlpha "google.golang.org/api/compute/v0.alpha"
 	computeBeta "google.golang.org/api/compute/v0.beta"
 	"google.golang.org/api/compute/v1"
+	"google.golang.org/api/googleapi"
 )
 
 func TestUnmarshalJSON(t *testing.T) {
@@ -396,5 +400,169 @@ func TestImageValidate(t *testing.T) {
 		} else if !tt.shouldErr {
 			t.Errorf("%s: unexpected error: %v", tt.desc, err)
 		}
+	}
+}
+
+func TestImageExistsSkipCachingImages(t *testing.T) {
+	tests := []struct {
+		desc        string
+		getImageFn  func(project, name string) (*compute.Image, error)
+		wantExists  bool
+		wantErrType string
+	}{
+		{
+			desc: "image exists",
+			getImageFn: func(project, name string) (*compute.Image, error) {
+				return &compute.Image{Name: name}, nil
+			},
+			wantExists: true,
+		},
+		{
+			desc: "image not found",
+			getImageFn: func(project, name string) (*compute.Image, error) {
+				return nil, &googleapi.Error{Code: http.StatusNotFound}
+			},
+			wantExists: false,
+		},
+		{
+			desc: "image obsolete",
+			getImageFn: func(project, name string) (*compute.Image, error) {
+				return &compute.Image{Name: name, Deprecated: &compute.DeprecationStatus{State: "OBSOLETE"}}, nil
+			},
+			wantExists:  true,
+			wantErrType: imageObsoleteDeletedError,
+		},
+		{
+			desc: "image deleted",
+			getImageFn: func(project, name string) (*compute.Image, error) {
+				return &compute.Image{Name: name, Deprecated: &compute.DeprecationStatus{State: "DELETED"}}, nil
+			},
+			wantExists:  true,
+			wantErrType: imageObsoleteDeletedError,
+		},
+		{
+			desc: "api error",
+			getImageFn: func(project, name string) (*compute.Image, error) {
+				return nil, &googleapi.Error{Code: http.StatusInternalServerError}
+			},
+			wantExists:  false,
+			wantErrType: apiError,
+		},
+		{
+			desc: "non-googleapi error",
+			getImageFn: func(project, name string) (*compute.Image, error) {
+				return nil, errors.New("network failure")
+			},
+			wantExists:  false,
+			wantErrType: apiError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			w := testWorkflow()
+			w.SkipCachingImages()
+			c := w.ComputeClient.(*daisyCompute.TestClient)
+			c.ListImagesFn = func(p string, _ ...daisyCompute.ListCallOption) ([]*compute.Image, error) {
+				t.Error("ListImages should not be called when SkipCachingImages is enabled")
+				return nil, errors.New("unexpected ListImages call")
+			}
+			c.GetImageFn = tt.getImageFn
+
+			exists, err := w.imageExists(testProject, "", "test-img")
+			if exists != tt.wantExists {
+				t.Errorf("exists = %v, want %v", exists, tt.wantExists)
+			}
+			if tt.wantErrType == "" {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+			} else if err == nil {
+				t.Errorf("expected error of type %q, got nil", tt.wantErrType)
+			} else if !err.CausedByErrType(tt.wantErrType) {
+				t.Errorf("error %v does not have type %q", err, tt.wantErrType)
+			}
+		})
+	}
+}
+
+func TestImageValidateSkipCachingImages(t *testing.T) {
+	tests := []struct {
+		desc       string
+		overWrite  bool
+		getImageFn func(project, name string) (*compute.Image, error)
+		shouldErr  bool
+	}{
+		{
+			desc:      "new image returns 404",
+			overWrite: false,
+			getImageFn: func(project, name string) (*compute.Image, error) {
+				return nil, &googleapi.Error{Code: http.StatusNotFound}
+			},
+			shouldErr: false,
+		},
+		{
+			desc:      "existing image without overwrite",
+			overWrite: false,
+			getImageFn: func(project, name string) (*compute.Image, error) {
+				return &compute.Image{Name: name}, nil
+			},
+			shouldErr: true,
+		},
+		{
+			desc:      "existing image with overwrite",
+			overWrite: true,
+			getImageFn: func(project, name string) (*compute.Image, error) {
+				return &compute.Image{Name: name}, nil
+			},
+			shouldErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ctx := context.Background()
+			w := testWorkflow()
+			w.SkipCachingImages()
+			c := w.ComputeClient.(*daisyCompute.TestClient)
+			c.ListImagesFn = func(p string, _ ...daisyCompute.ListCallOption) ([]*compute.Image, error) {
+				t.Error("ListImages should not be called when SkipCachingImages is enabled")
+				return nil, errors.New("unexpected ListImages call")
+			}
+			c.GetImageFn = tt.getImageFn
+
+			dCreator, err := w.NewStep("dCreator")
+			if err != nil {
+				t.Fatalf("NewStep error: %v", err)
+			}
+			if err := w.disks.regCreate("d1", &Resource{link: fmt.Sprintf("projects/%s/zones/%s/disks/d1", w.Project, w.Zone)}, dCreator, false); err != nil {
+				t.Fatalf("regCreate disk error: %v", err)
+			}
+
+			img := &Image{
+				ImageBase: ImageBase{OverWrite: tt.overWrite},
+				Image:     compute.Image{Name: "new-img", SourceDisk: "d1"},
+			}
+			img.daisyName = img.Name
+			img.RealName = img.Name
+			img.link = fmt.Sprintf("projects/%s/global/images/%s", w.Project, img.Name)
+			img.Project = w.Project
+
+			s, err := w.NewStep("createImage")
+			if err != nil {
+				t.Fatalf("NewStep error: %v", err)
+			}
+			s.CreateImages = &CreateImages{Images: []*Image{img}}
+			if err := w.AddDependency(s, dCreator); err != nil {
+				t.Fatalf("AddDependency error: %v", err)
+			}
+
+			err = s.CreateImages.validate(ctx, s)
+			if tt.shouldErr && err == nil {
+				t.Error("expected validation error, got nil")
+			} else if !tt.shouldErr && err != nil {
+				t.Errorf("unexpected validation error: %v", err)
+			}
+		})
 	}
 }

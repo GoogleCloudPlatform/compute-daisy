@@ -81,6 +81,9 @@ func (w *Workflow) imageExists(project, family, image string) (bool, DError) {
 	if w.disableCachingImages || err != nil {
 		ic, err := w.ComputeClient.GetImage(project, image)
 		if err != nil {
+			if apiErr, ok := err.(*googleapi.Error); ok && apiErr.Code == http.StatusNotFound {
+				return false, nil
+			}
 			return false, typedErr(apiError, "error getting resource for project", err)
 		}
 		return true, errIfDeprecatedOrDeleted(ic, image)
