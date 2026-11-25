@@ -211,7 +211,7 @@ func TestTestClient(t *testing.T) {
 	c.SetInstanceMetadataFn = func(_, _, _ string, _ *compute.Metadata) error { fakeCalled = true; return nil }
 	c.SetCommonInstanceMetadataFn = func(_ string, _ *compute.Metadata) error { fakeCalled = true; return nil }
 	c.zoneOperationsWaitFn = func(_, _, _ string) error { fakeCalled = true; return nil }
-	c.regionOperationsWaitFn = func(_, _, _ string) error { fakeCalled = true; return nil }
+	c.regionOperationsWaitFn = func(_, _, _ string) (*compute.Operation, error) { fakeCalled = true; return nil, nil }
 	c.globalOperationsWaitFn = func(_, _ string) error { fakeCalled = true; return nil }
 	c.GetGuestAttributesFn = func(_, _, _, _, _ string) (*compute.GuestAttributes, error) { fakeCalled = true; return nil, nil }
 	c.CreateMachineImageFn = func(_ string, _ *compute.MachineImage) error { fakeCalled = true; return nil }

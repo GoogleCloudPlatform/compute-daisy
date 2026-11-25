@@ -56,6 +56,7 @@ type TestClient struct {
 	CreateFirewallRuleFn               func(project string, i *compute.Firewall) error
 	CreateImageFn                      func(project string, i *compute.Image) error
 	CreateInstanceFn                   func(project, zone string, i *compute.Instance) error
+	BulkInsertInstancesFn              func(project, region string, r *compute.BulkInsertInstanceResource) (*compute.Operation, error)
 	CreateNetworkFn                    func(project string, n *compute.Network) error
 	CreateSnapshotFn                   func(project, zone, disk string, s *compute.Snapshot) error
 	CreateSubnetworkFn                 func(project, region string, n *compute.Subnetwork) error
@@ -151,7 +152,7 @@ type TestClient struct {
 	CreateInstanceBetaFn func(project, zone string, i *computeBeta.Instance) error
 
 	zoneOperationsWaitFn   func(project, zone, name string) error
-	regionOperationsWaitFn func(project, region, name string) error
+	regionOperationsWaitFn func(project, region, name string) (*compute.Operation, error)
 	globalOperationsWaitFn func(project, name string) error
 }
 
@@ -217,6 +218,14 @@ func (c *TestClient) CreateInstance(project, zone string, i *compute.Instance) e
 		return c.CreateInstanceFn(project, zone, i)
 	}
 	return c.client.CreateInstance(project, zone, i)
+}
+
+// BulkInsertInstances uses the override method BulkInsertInstancesFn or the real implementation.
+func (c *TestClient) BulkInsertInstances(project, region string, r *compute.BulkInsertInstanceResource) (*compute.Operation, error) {
+	if c.BulkInsertInstancesFn != nil {
+		return c.BulkInsertInstancesFn(project, region, r)
+	}
+	return c.client.BulkInsertInstances(project, region, r)
 }
 
 // CreateNetwork uses the override method CreateNetworkFn or the real implementation.
@@ -660,7 +669,7 @@ func (c *TestClient) zoneOperationsWait(project, zone, name string) error {
 }
 
 // regionOperationsWait uses the override method regionOperationsWaitFn or the real implementation.
-func (c *TestClient) regionOperationsWait(project, region, name string) error {
+func (c *TestClient) regionOperationsWait(project, region, name string) (*compute.Operation, error) {
 	if c.regionOperationsWaitFn != nil {
 		return c.regionOperationsWaitFn(project, region, name)
 	}

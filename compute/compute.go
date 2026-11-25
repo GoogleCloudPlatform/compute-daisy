@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 	computeAlpha "google.golang.org/api/compute/v0.alpha"
 	computeBeta "google.golang.org/api/compute/v0.beta"
@@ -252,7 +253,7 @@ func (o Filter) listCallOptionApply(i any) any {
 type clientImpl interface {
 	Client
 	zoneOperationsWait(project, zone, name string) error
-	regionOperationsWait(project, region, name string) error
+	regionOperationsWait(project, region, name string) (*compute.Operation, error)
 	globalOperationsWait(project, name string) error
 }
 
@@ -366,16 +367,17 @@ func (c *client) BasePath() string {
 type operationGetterFunc func() (*compute.Operation, error)
 
 func (c *client) zoneOperationsWait(project, zone, name string) error {
-	return c.operationsWaitHelper(project, name, func() (op *compute.Operation, err error) {
+	_, err := c.operationsWaitHelper(project, name, func() (op *compute.Operation, err error) {
 		op, err = c.Retry(c.raw.ZoneOperations.Wait(project, zone, name).Do)
 		if err != nil {
 			err = fmt.Errorf("failed to get zone operation %s: %v", name, err)
 		}
 		return op, err
 	})
+	return err
 }
 
-func (c *client) regionOperationsWait(project, region, name string) error {
+func (c *client) regionOperationsWait(project, region, name string) (*compute.Operation, error) {
 	return c.operationsWaitHelper(project, name, func() (op *compute.Operation, err error) {
 		op, err = c.Retry(c.raw.RegionOperations.Wait(project, region, name).Do)
 		if err != nil {
@@ -386,13 +388,14 @@ func (c *client) regionOperationsWait(project, region, name string) error {
 }
 
 func (c *client) globalOperationsWait(project, name string) error {
-	return c.operationsWaitHelper(project, name, func() (op *compute.Operation, err error) {
+	_, err := c.operationsWaitHelper(project, name, func() (op *compute.Operation, err error) {
 		op, err = c.Retry(c.raw.GlobalOperations.Wait(project, name).Do)
 		if err != nil {
 			err = fmt.Errorf("failed to get global operation %s: %v", name, err)
 		}
 		return op, err
 	})
+	return err
 }
 
 // OperationErrorCodeFormat is the format of operation error code.
@@ -400,11 +403,11 @@ var OperationErrorCodeFormat = "Code: %s"
 
 var operationErrorMessageFormat = "Message: %s"
 
-func (c *client) operationsWaitHelper(project, name string, getOperation operationGetterFunc) error {
+func (c *client) operationsWaitHelper(project, name string, getOperation operationGetterFunc) (*compute.Operation, error) {
 	for {
 		op, err := getOperation()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		switch op.Status {
@@ -419,12 +422,12 @@ func (c *client) operationsWaitHelper(project, name string, getOperation operati
 						fmt.Sprintf("\n%v\n%v", OperationErrorCodeFormat, operationErrorMessageFormat),
 						operr.Code, operr.Message)
 				}
-				return fmt.Errorf("operation failed %+v: %s", op, operrs)
+				return nil, fmt.Errorf("operation failed %+v: %s", op, operrs)
 			}
 		default:
-			return fmt.Errorf("unknown operation status %q: %+v", op.Status, op)
+			return nil, fmt.Errorf("unknown operation status %q: %+v", op.Status, op)
 		}
-		return nil
+		return op, nil
 	}
 }
 
@@ -560,7 +563,7 @@ func (c *client) CreateForwardingRule(project, region string, fr *compute.Forwar
 		return err
 	}
 
-	if err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
+	if _, err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
 		return err
 	}
 
@@ -662,7 +665,8 @@ func (c *client) DeleteRegionTargetHTTPProxy(project, region, name string) error
 	if err != nil {
 		return err
 	}
-	return c.i.regionOperationsWait(project, region, op.Name)
+	_, err = c.i.regionOperationsWait(project, region, op.Name)
+	return err
 }
 
 // CreateRegionTargetHTTPProxy creates a GCE RegionTargetHTTPProxy.
@@ -671,7 +675,7 @@ func (c *client) CreateRegionTargetHTTPProxy(project, region string, p *compute.
 	if err != nil {
 		return err
 	}
-	if err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
+	if _, err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
 		return err
 	}
 	var createdRegionTargetHTTPProxy *compute.TargetHttpProxy
@@ -721,7 +725,8 @@ func (c *client) DeleteRegionBackendService(project, region, name string) error 
 	if err != nil {
 		return err
 	}
-	return c.i.regionOperationsWait(project, region, op.Name)
+	_, err = c.i.regionOperationsWait(project, region, op.Name)
+	return err
 }
 
 // CreateRegionBackendService creates a GCE RegionBackendService.
@@ -730,7 +735,7 @@ func (c *client) CreateRegionBackendService(project, region string, p *compute.B
 	if err != nil {
 		return err
 	}
-	if err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
+	if _, err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
 		return err
 	}
 	var createdRegionBackendService *compute.BackendService
@@ -839,7 +844,8 @@ func (c *client) DeleteRegionURLMap(project, region, name string) error {
 	if err != nil {
 		return err
 	}
-	return c.i.regionOperationsWait(project, region, op.Name)
+	_, err = c.i.regionOperationsWait(project, region, op.Name)
+	return err
 }
 
 // CreateRegionURLMap creates a GCE RegionURLMap.
@@ -848,7 +854,7 @@ func (c *client) CreateRegionURLMap(project, region string, p *compute.UrlMap) e
 	if err != nil {
 		return err
 	}
-	if err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
+	if _, err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
 		return err
 	}
 	var createdRegionURLMap *compute.UrlMap
@@ -898,7 +904,8 @@ func (c *client) DeleteRegionHealthCheck(project, region, name string) error {
 	if err != nil {
 		return err
 	}
-	return c.i.regionOperationsWait(project, region, op.Name)
+	_, err = c.i.regionOperationsWait(project, region, op.Name)
+	return err
 }
 
 // CreateRegionHealthCheck creates a GCE RegionHealthCheck.
@@ -907,7 +914,7 @@ func (c *client) CreateRegionHealthCheck(project, region string, p *compute.Heal
 	if err != nil {
 		return err
 	}
-	if err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
+	if _, err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
 		return err
 	}
 	var createdRegionHealthCheck *compute.HealthCheck
@@ -957,7 +964,8 @@ func (c *client) DeleteRegionNetworkEndpointGroup(project, region, name string) 
 	if err != nil {
 		return err
 	}
-	return c.i.regionOperationsWait(project, region, op.Name)
+	_, err = c.i.regionOperationsWait(project, region, op.Name)
+	return err
 }
 
 // CreateRegionNetworkEndpointGroup creates a GCE RegionNetworkEndpointGroup.
@@ -966,7 +974,7 @@ func (c *client) CreateRegionNetworkEndpointGroup(project, region string, p *com
 	if err != nil {
 		return err
 	}
-	if err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
+	if _, err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
 		return err
 	}
 	var createdRegionNetworkEndpointGroup *compute.NetworkEndpointGroup
@@ -1087,6 +1095,20 @@ func (c *client) CreateInstance(project, zone string, i *compute.Instance) error
 	return nil
 }
 
+// BulkInsertInstances creates instances with regionInstances.bulkInsert, waits
+// for the regional operation, and returns the completed operation.
+//
+// It is not part of the Client interface, so that existing Client
+// implementations keep compiling; callers type-assert for it.
+func (c *client) BulkInsertInstances(project, region string, r *compute.BulkInsertInstanceResource) (*compute.Operation, error) {
+	op, err := c.Retry(c.raw.RegionInstances.BulkInsert(project, region, r).RequestId(uuid.New().String()).Do)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.i.regionOperationsWait(project, region, op.Name)
+}
+
 // CreateInstanceAlpha creates a GCE image using Alpha API.
 func (c *client) CreateInstanceAlpha(project, zone string, i *computeAlpha.Instance) error {
 	op, err := c.RetryAlpha(c.rawAlpha.Instances.Insert(project, zone, i).Do)
@@ -1149,7 +1171,7 @@ func (c *client) CreateSubnetwork(project, region string, n *compute.Subnetwork)
 		return err
 	}
 
-	if err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
+	if _, err := c.i.regionOperationsWait(project, region, op.Name); err != nil {
 		return err
 	}
 
@@ -1228,7 +1250,8 @@ func (c *client) DeleteForwardingRule(project, region, name string) error {
 		return err
 	}
 
-	return c.i.regionOperationsWait(project, region, op.Name)
+	_, err = c.i.regionOperationsWait(project, region, op.Name)
+	return err
 }
 
 // DeleteInstance deletes a GCE instance.
@@ -1278,7 +1301,8 @@ func (c *client) DeleteSubnetwork(project, region, name string) error {
 		return err
 	}
 
-	return c.i.regionOperationsWait(project, region, op.Name)
+	_, err = c.i.regionOperationsWait(project, region, op.Name)
+	return err
 }
 
 // DeleteTargetInstance deletes a GCE TargetInstance.

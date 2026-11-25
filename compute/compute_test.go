@@ -21,8 +21,10 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/kylelemons/godebug/pretty"
 	computeAlpha "google.golang.org/api/compute/v0.alpha"
 	computeBeta "google.golang.org/api/compute/v0.beta"
@@ -114,7 +116,7 @@ func TestCreates(t *testing.T) {
 	}
 	defer svr.Close()
 	c.zoneOperationsWaitFn = func(_, _, _ string) error { return waitErr }
-	c.regionOperationsWaitFn = func(_, _, _ string) error { return waitErr }
+	c.regionOperationsWaitFn = func(_, _, _ string) (*compute.Operation, error) { return nil, waitErr }
 	c.globalOperationsWaitFn = func(_, _ string) error { return waitErr }
 
 	tests := []struct {
@@ -627,5 +629,207 @@ func TestSuspendResume(t *testing.T) {
 	}
 	if err := c.Resume(testProject, testZone, testInstance); err != nil {
 		t.Fatalf("error running Resume: %v", err)
+	}
+}
+
+func TestBulkInsertInstances(t *testing.T) {
+	opPath := fmt.Sprintf("/projects/%s/regions/%s/operations/op-1", testProject, testRegion)
+	var got []string
+	var gotReq compute.BulkInsertInstanceResource
+	waitCalls := 0
+	svr, c, err := NewTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, r.Method+" "+r.URL.Path)
+		switch {
+		case r.Method == "POST" && r.URL.Path == fmt.Sprintf("/projects/%s/regions/%s/instances/bulkInsert", testProject, testRegion):
+			if err := json.NewDecoder(r.Body).Decode(&gotReq); err != nil {
+				t.Errorf("decoding bulkInsert request: %v", err)
+			}
+			fmt.Fprint(w, `{"name":"op-1","status":"RUNNING"}`)
+		case r.Method == "POST" && r.URL.Path == opPath+"/wait":
+			waitCalls++
+			if waitCalls == 1 {
+				fmt.Fprint(w, `{"name":"op-1","status":"RUNNING"}`)
+				return
+			}
+			fmt.Fprintf(w, `{"name":"op-1","status":"DONE","instancesBulkInsertOperationMetadata":{"perLocationStatus":{"zones/%s":{"createdVmCount":1}}}}`, testZone)
+		default:
+			w.WriteHeader(500)
+			fmt.Fprintln(w, "URL and Method not recognized:", r.Method, r.URL)
+		}
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer svr.Close()
+
+	req := &compute.BulkInsertInstanceResource{Count: 1, MinCount: 1, LocationPolicy: &compute.LocationPolicy{TargetShape: "ANY_SINGLE_ZONE"}}
+	op, err := c.BulkInsertInstances(testProject, testRegion, req)
+	if err != nil {
+		t.Fatalf("BulkInsertInstances: %v", err)
+	}
+	wantCalls := []string{
+		fmt.Sprintf("POST /projects/%s/regions/%s/instances/bulkInsert", testProject, testRegion),
+		"POST " + opPath + "/wait",
+		"POST " + opPath + "/wait",
+	}
+	if !reflect.DeepEqual(got, wantCalls) {
+		t.Errorf("requests = %q, want %q", got, wantCalls)
+	}
+	if gotReq.Count != 1 || gotReq.LocationPolicy == nil || gotReq.LocationPolicy.TargetShape != "ANY_SINGLE_ZONE" {
+		t.Errorf("request body = %+v, want the request passed in", gotReq)
+	}
+	if op.InstancesBulkInsertOperationMetadata == nil || op.InstancesBulkInsertOperationMetadata.PerLocationStatus["zones/"+testZone].CreatedVmCount != 1 {
+		t.Errorf("returned operation = %+v, want the metadata from RegionOperations.Wait", op)
+	}
+}
+
+func TestBulkInsertInstancesErrors(t *testing.T) {
+	bulkInsertCall := fmt.Sprintf("POST /projects/%s/regions/%s/instances/bulkInsert", testProject, testRegion)
+	opPath := fmt.Sprintf("/projects/%s/regions/%s/operations/op-1", testProject, testRegion)
+	waitCall := "POST " + opPath + "/wait"
+
+	tests := []struct {
+		name           string
+		failCall       string
+		failCode       int
+		failBody       string
+		wantCalls      []string
+		wantErrSubstrs []string
+	}{
+		{
+			name:           "bulk_insert_error",
+			failCall:       bulkInsertCall,
+			failCode:       http.StatusBadRequest,
+			failBody:       `{"error":{"code":400,"message":"invalid bulk insert"}}`,
+			wantCalls:      []string{bulkInsertCall},
+			wantErrSubstrs: []string{"invalid bulk insert"},
+		},
+		{
+			name:           "wait_http_error",
+			failCall:       waitCall,
+			failCode:       http.StatusBadRequest,
+			failBody:       `{"error":{"code":400,"message":"operation wait failed"}}`,
+			wantCalls:      []string{bulkInsertCall, waitCall},
+			wantErrSubstrs: []string{"op-1", "operation wait failed"},
+		},
+		{
+			name:           "wait_operation_error",
+			failCall:       waitCall,
+			failCode:       http.StatusOK,
+			failBody:       `{"name":"op-1","status":"DONE","error":{"errors":[{"code":"RESOURCE_EXHAUSTED","message":"quota exceeded"}]}}`,
+			wantCalls:      []string{bulkInsertCall, waitCall},
+			wantErrSubstrs: []string{"op-1", "RESOURCE_EXHAUSTED"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var got []string
+			svr, c, err := NewTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				call := r.Method + " " + r.URL.Path
+				got = append(got, call)
+				if call == tc.failCall {
+					w.WriteHeader(tc.failCode)
+					fmt.Fprint(w, tc.failBody)
+					return
+				}
+				switch call {
+				case bulkInsertCall:
+					fmt.Fprint(w, `{"name":"op-1","status":"RUNNING"}`)
+				case waitCall:
+					fmt.Fprint(w, `{"name":"op-1","status":"DONE"}`)
+				default:
+					w.WriteHeader(http.StatusInternalServerError)
+					fmt.Fprintln(w, "URL and Method not recognized:", r.Method, r.URL)
+				}
+			}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer svr.Close()
+
+			req := &compute.BulkInsertInstanceResource{Count: 1, MinCount: 1}
+			op, err := c.BulkInsertInstances(testProject, testRegion, req)
+			if err == nil {
+				t.Fatalf("BulkInsertInstances() = (%+v, nil), want error containing %q", op, tc.wantErrSubstrs)
+			}
+			for _, want := range tc.wantErrSubstrs {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("BulkInsertInstances() error = %q, want substring %q", err.Error(), want)
+				}
+			}
+			if op != nil {
+				t.Errorf("BulkInsertInstances() operation = %+v, want nil", op)
+			}
+			if !reflect.DeepEqual(got, tc.wantCalls) {
+				t.Errorf("requests = %q, want %q", got, tc.wantCalls)
+			}
+		})
+	}
+}
+
+func TestBulkInsertInstancesRetryReusesRequestID(t *testing.T) {
+	bulkInsertPath := fmt.Sprintf("/projects/%s/regions/%s/instances/bulkInsert", testProject, testRegion)
+	opPath := fmt.Sprintf("/projects/%s/regions/%s/operations/op-1", testProject, testRegion)
+
+	var gotCalls []string
+	var gotRequestIDs []string
+	var gotBodies []compute.BulkInsertInstanceResource
+	svr, c, err := NewTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotCalls = append(gotCalls, r.Method+" "+r.URL.Path)
+		switch {
+		case r.Method == "POST" && r.URL.Path == bulkInsertPath:
+			gotRequestIDs = append(gotRequestIDs, r.URL.Query().Get("requestId"))
+			var body compute.BulkInsertInstanceResource
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Errorf("decoding bulkInsert request: %v", err)
+			}
+			gotBodies = append(gotBodies, body)
+			if len(gotRequestIDs) == 1 {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				fmt.Fprint(w, `{"error":{"code":503,"message":"backend unavailable"}}`)
+				return
+			}
+			fmt.Fprint(w, `{"name":"op-1","status":"RUNNING"}`)
+		case r.Method == "POST" && r.URL.Path == opPath+"/wait":
+			fmt.Fprintf(w, `{"name":"op-1","status":"DONE","instancesBulkInsertOperationMetadata":{"perLocationStatus":{"zones/%s":{"createdVmCount":1}}}}`, testZone)
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintln(w, "URL and Method not recognized:", r.Method, r.URL)
+		}
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer svr.Close()
+
+	req := &compute.BulkInsertInstanceResource{Count: 1, MinCount: 1, LocationPolicy: &compute.LocationPolicy{TargetShape: "ANY_SINGLE_ZONE"}}
+	op, err := c.BulkInsertInstances(testProject, testRegion, req)
+	if err != nil {
+		t.Fatalf("BulkInsertInstances: %v", err)
+	}
+
+	wantCalls := []string{
+		"POST " + bulkInsertPath,
+		"POST " + bulkInsertPath,
+		"POST " + opPath + "/wait",
+	}
+	if !reflect.DeepEqual(gotCalls, wantCalls) {
+		t.Errorf("requests = %q, want %q", gotCalls, wantCalls)
+	}
+	if len(gotRequestIDs) != 2 {
+		t.Fatalf("got %d bulkInsert requestIds (%q), want 2", len(gotRequestIDs), gotRequestIDs)
+	}
+	if _, err := uuid.Parse(gotRequestIDs[0]); err != nil {
+		t.Errorf("first requestId %q is not a valid UUID: %v", gotRequestIDs[0], err)
+	}
+	if gotRequestIDs[0] != gotRequestIDs[1] {
+		t.Errorf("retry requestId = %q, want same as first attempt %q", gotRequestIDs[1], gotRequestIDs[0])
+	}
+	if len(gotBodies) != 2 || gotBodies[1].Count != 1 || gotBodies[1].LocationPolicy == nil || gotBodies[1].LocationPolicy.TargetShape != "ANY_SINGLE_ZONE" {
+		t.Errorf("retried request bodies = %+v, want intact request body on retry", gotBodies)
+	}
+	if op.InstancesBulkInsertOperationMetadata == nil || op.InstancesBulkInsertOperationMetadata.PerLocationStatus["zones/"+testZone].CreatedVmCount != 1 {
+		t.Errorf("returned operation = %+v, want the metadata from RegionOperations.Wait", op)
 	}
 }
